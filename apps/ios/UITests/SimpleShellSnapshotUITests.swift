@@ -47,6 +47,17 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-chats-light")
     }
 
+    func testSimpleChatActionsMenu() {
+        let app = self.launch(appearance: "light")
+        let actions = app.buttons["Simple.Chat.Actions"].firstMatch
+        XCTAssertTrue(actions.waitForExistence(timeout: 10), "Chat actions button is missing")
+        XCTAssertTrue(
+            self.tap(actions, until: app.buttons["chat-actions-model-sign-in"]),
+            "Chat actions menu is missing model sign-in")
+        self.settle()
+        self.capture("simple-chat-actions-light")
+    }
+
     private func captureTabs(appearance: String) {
         let app = self.launch(appearance: appearance)
         self.assertComposerClearsTabBar(in: app)
