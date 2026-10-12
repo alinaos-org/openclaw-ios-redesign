@@ -4,6 +4,8 @@ import SwiftUI
 
 private struct ExecApprovalPromptDialogModifier: ViewModifier {
     @Environment(NodeAppModel.self) private var appModel: NodeAppModel
+    // SIMPLE-UI: the simple layout swaps in `SimpleApprovalCard`.
+    @Environment(\.usesSimpleApprovalCard) private var usesSimpleApprovalCard
     @AccessibilityFocusState private var approvalCardFocused: Bool
     let suppressedApproval: NodeAppModel.ExecApprovalInboxKey?
 
@@ -20,21 +22,7 @@ private struct ExecApprovalPromptDialogModifier: ViewModifier {
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
 
-                    ExecApprovalPromptCard(
-                        prompt: prompt,
-                        isResolving: self.appModel.pendingExecApprovalPromptResolving,
-                        canDismiss: self.appModel.pendingExecApprovalPromptCanDismiss,
-                        errorText: self.appModel.pendingExecApprovalPromptErrorText,
-                        resolvedText: self.appModel.pendingExecApprovalPromptResolvedText,
-                        resolvedTone: self.appModel.pendingExecApprovalPromptOutcome?.tone,
-                        onDecision: { decision in
-                            Task {
-                                await self.appModel.resolvePendingExecApprovalPrompt(decision: decision.rawValue)
-                            }
-                        },
-                        onCancel: {
-                            self.appModel.dismissPendingExecApprovalPrompt()
-                        })
+                    self.promptCard(prompt)
                         .frame(maxHeight: 680)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
@@ -52,6 +40,41 @@ private struct ExecApprovalPromptDialogModifier: ViewModifier {
             self.approvalCardFocused = key != nil
         }
         .animation(.easeInOut(duration: 0.18), value: self.presentedPromptKey)
+    }
+
+    @ViewBuilder
+    private func promptCard(_ prompt: NodeAppModel.ExecApprovalPrompt) -> some View {
+        if self.usesSimpleApprovalCard {
+            // SIMPLE-UI: same decisions and states, simple-layout presentation.
+            SimpleApprovalCard(
+                prompt: prompt,
+                agentName: SimpleAgentIdentity.displayName(appModel: self.appModel),
+                isResolving: self.appModel.pendingExecApprovalPromptResolving,
+                canDismiss: self.appModel.pendingExecApprovalPromptCanDismiss,
+                errorText: self.appModel.pendingExecApprovalPromptErrorText,
+                resolvedText: self.appModel.pendingExecApprovalPromptResolvedText,
+                resolvedTone: self.appModel.pendingExecApprovalPromptOutcome?.tone,
+                onDecision: { self.resolve($0) },
+                onCancel: { self.appModel.dismissPendingExecApprovalPrompt() })
+        } else {
+            ExecApprovalPromptCard(
+                prompt: prompt,
+                isResolving: self.appModel.pendingExecApprovalPromptResolving,
+                canDismiss: self.appModel.pendingExecApprovalPromptCanDismiss,
+                errorText: self.appModel.pendingExecApprovalPromptErrorText,
+                resolvedText: self.appModel.pendingExecApprovalPromptResolvedText,
+                resolvedTone: self.appModel.pendingExecApprovalPromptOutcome?.tone,
+                onDecision: { self.resolve($0) },
+                onCancel: {
+                    self.appModel.dismissPendingExecApprovalPrompt()
+                })
+        }
+    }
+
+    private func resolve(_ decision: ApprovalDecision) {
+        Task {
+            await self.appModel.resolvePendingExecApprovalPrompt(decision: decision.rawValue)
+        }
     }
 
     private var presentedPrompt: NodeAppModel.ExecApprovalPrompt? {

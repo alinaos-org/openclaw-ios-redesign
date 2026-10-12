@@ -62,6 +62,22 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-model-settings-light")
     }
 
+    func testSimpleApprovalCardLight() {
+        self.captureApprovalCard(appearance: "light")
+    }
+
+    func testSimpleApprovalCardDark() {
+        self.captureApprovalCard(appearance: "dark")
+    }
+
+    private func captureApprovalCard(appearance: String) {
+        let app = self.launch(appearance: appearance, additionalArguments: ["--openclaw-simple-approval-sample"])
+        XCTAssertTrue(app.buttons["simple-approval-allow"].waitForExistence(timeout: 10), "Approval card is missing")
+        XCTAssertTrue(app.buttons["simple-approval-deny"].exists, "Deny button is missing")
+        self.settle()
+        self.capture("simple-approval-\(appearance)")
+    }
+
     private func captureTabs(appearance: String) {
         let app = self.launch(appearance: appearance)
         self.assertComposerClearsTabBar(in: app)
@@ -101,7 +117,7 @@ final class SimpleShellSnapshotUITests: XCTestCase {
     }
 
     @discardableResult
-    private func launch(appearance: String) -> XCUIApplication {
+    private func launch(appearance: String, additionalArguments: [String] = []) -> XCUIApplication {
         self.app?.terminate()
         let app = XCUIApplication()
         app.launchArguments += [
@@ -112,7 +128,7 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             "hidden",
             "--openclaw-appearance",
             appearance,
-        ]
+        ] + additionalArguments
         app.launch()
         self.app = app
         XCTAssertTrue(

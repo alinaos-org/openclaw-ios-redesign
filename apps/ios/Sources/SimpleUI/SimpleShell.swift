@@ -50,6 +50,13 @@ struct SimpleShell: View {
         }
         .simpleCanvas()
         .tint(SimplePalette.accent)
+        #if DEBUG
+        .overlay {
+            if SimpleApprovalSampleOverlay.isRequested {
+                SimpleApprovalSampleOverlay()
+            }
+        }
+        #endif
         .onChange(of: self.selectedTab, initial: true) { _, tab in
             self.mountedTabs.insert(tab)
         }

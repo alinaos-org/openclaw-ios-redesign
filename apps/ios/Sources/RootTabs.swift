@@ -161,6 +161,8 @@ struct RootTabs: View {
                     _ = await viewModel.startNewSession()
                 }
             }
+            // SIMPLE-UI: approval dialogs (root and sheets) use the simple card.
+            .environment(\.usesSimpleApprovalCard, self.isSimpleShellActive)
     }
 
     private var chatOwnerTaskIdentity: ChatOwnerTaskIdentity {
