@@ -27,6 +27,10 @@ extension EnvironmentValues {
     /// growing draft, then voice and send. Model, effort, context, and
     /// permission controls stay in the full composer.
     @Entry public var openClawComposerPillStyle: OpenClawChatComposerPillStyle?
+
+    /// Bumped by a host to open model sign-in from its own menu. The pill
+    /// composer shows the sign-in link only while sign-in is needed.
+    @Entry public var openClawModelSignInRequest = 0
 }
 
 #if os(iOS)

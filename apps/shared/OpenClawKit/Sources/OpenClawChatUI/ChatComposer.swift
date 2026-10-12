@@ -104,6 +104,7 @@ struct OpenClawChatComposer: View {
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     // SIMPLE-UI: single-row composer for simplified hosts (ChatComposer+Pill.swift).
     @Environment(\.openClawComposerPillStyle) private var pillStyle
+    @Environment(\.openClawModelSignInRequest) private var hostModelSignInRequest
     @Bindable var viewModel: OpenClawChatViewModel
     let style: OpenClawChatView.Style
     let showsSessionSwitcher: Bool
@@ -195,9 +196,9 @@ struct OpenClawChatComposer: View {
                 .accessibilityIdentifier("chat-composer-model-sign-in-notice")
             }
             self.lifecycleComposer
-            if self.viewModel.modelCatalogMessage != nil || !self.usesDesktopModelMenu {
+            if self.showsModelSignInRow {
                 HStack {
-                    if let message = self.viewModel.modelCatalogMessage {
+                    if let message = self.modelSignInRowMessage {
                         Text(message).font(OpenClawChatTypography.caption)
                     }
                     Spacer()
@@ -219,7 +220,24 @@ struct OpenClawChatComposer: View {
         .onChange(of: self.presentationOwner) { _, _ in
                 self.invalidateModelSignIn()
             }
+            .onChange(of: self.hostModelSignInRequest) { _, _ in
+                // SIMPLE-UI: a host menu asked for model sign-in.
+                self.performModelSignInAction(.open)
+            }
             .onDisappear { self.invalidateModelSignIn() }
+    }
+
+    // SIMPLE-UI: the pill composer shows the sign-in row only while sign-in is
+    // needed (no credential, a failed sign-in, or an unloadable model list);
+    // every other composer keeps the upstream row.
+    private var showsModelSignInRow: Bool {
+        if self.pillStyle != nil { return self.modelSignInRowMessage != nil }
+        return self.viewModel.modelCatalogMessage != nil || !self.usesDesktopModelMenu
+    }
+
+    private var modelSignInRowMessage: String? {
+        guard self.pillStyle != nil else { return self.viewModel.modelCatalogMessage }
+        return self.viewModel.composerModelAvailabilityMessage ?? self.viewModel.modelCatalogMessage
     }
 
     var usesDesktopModelMenu: Bool {

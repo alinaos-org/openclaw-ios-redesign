@@ -32,6 +32,8 @@ struct ChatProTab: View {
         case exportTranscript
         case gatewaySettings
         case newSessionOptions
+        // SIMPLE-UI: opens the composer's model sign-in sheet.
+        case modelSignIn
     }
 
     @Environment(NodeAppModel.self) private var appModel
@@ -52,6 +54,8 @@ struct ChatProTab: View {
     @State private var pendingChatAction: PendingChatAction?
     @State private var speech: OpenClawChatSpeechController?
     @State private var isGatewayStatusManuallyExpanded = false
+    // SIMPLE-UI: bumped to open model sign-in from the chat actions menu.
+    @State private var modelSignInRequest = 0
     let headerSidebarAction: OpenClawSidebarHeaderAction?
     let openSettings: () -> Void
     // SIMPLE-UI: header and bubble styling for the simple layout (Sources/SimpleUI).
@@ -186,6 +190,8 @@ struct ChatProTab: View {
                 })
                 // iMessage-style grey bubbles for agent replies in the clean chrome.
                 .environment(\.openClawAssistantBubblesInCleanChrome, true)
+                // SIMPLE-UI: lets the chat actions menu open model sign-in.
+                .environment(\.openClawModelSignInRequest, self.modelSignInRequest)
                 .environment(
                     \.openClawEmbeddedBrowserUnavailableReason,
                     self.appModel.activeGatewayConnectConfig?.ingressAuthorization == nil ? nil :
@@ -487,6 +493,17 @@ struct ChatProTab: View {
                         self.showsChatActions = false
                     }
                 }
+                // SIMPLE-UI: the simple composer hides this link until sign-in is needed.
+                if self.chrome.isSimple {
+                    self.chatActionButton(
+                        title: "Sign in to a model provider…",
+                        systemImage: "key",
+                        disabled: self.viewModel == nil || !self.gatewayConnected)
+                    {
+                        self.pendingChatAction = .modelSignIn
+                    }
+                    .accessibilityIdentifier("chat-actions-model-sign-in")
+                }
 
                 Button {
                     self.showsAssistantTrace.toggle()
@@ -545,6 +562,8 @@ struct ChatProTab: View {
             self.openSettings()
         case .newSessionOptions:
             self.showsNewSessionOptions = true
+        case .modelSignIn:
+            self.modelSignInRequest &+= 1
         }
     }
 
