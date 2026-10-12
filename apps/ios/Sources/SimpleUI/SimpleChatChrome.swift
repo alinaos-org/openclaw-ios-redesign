@@ -17,8 +17,9 @@ enum ChatProTabChrome {
     }
 }
 
-/// Applies the simple chrome to `ChatProTab`: paints the shared canvas (the
-/// chat skips its own background in this chrome), hides the navigation bar,
+/// Applies the simple chrome to `ChatProTab`: switches the composer to a
+/// single-row pill, paints the shared canvas (the chat skips its own
+/// background in this chrome), hides the navigation bar,
 /// adds the shared agent header, and stops read-aloud when the chat tab is
 /// hidden (simple-layout tabs stay mounted, so `onDisappear` never fires).
 /// Classic chrome passes the content through unchanged.
@@ -32,6 +33,7 @@ struct SimpleChatChromeModifier<TopBar: View>: ViewModifier {
     func body(content: Content) -> some View {
         if case let .simple(onTapAgent) = self.chrome {
             content
+                .environment(\.openClawComposerPillStyle, .simpleLayout)
                 .simpleCanvas()
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -70,5 +72,15 @@ enum SimpleStarterPrompts {
                 what you can access right now.
                 """)),
         ]
+    }
+}
+
+extension OpenClawChatComposerPillStyle {
+    /// Solid field with a hairline and the layout's blue send button.
+    static var simpleLayout: OpenClawChatComposerPillStyle {
+        OpenClawChatComposerPillStyle(
+            surface: SimplePalette.surface,
+            border: SimplePalette.hairline,
+            accent: SimplePalette.accent)
     }
 }

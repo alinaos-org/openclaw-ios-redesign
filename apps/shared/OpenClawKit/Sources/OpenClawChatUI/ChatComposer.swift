@@ -102,6 +102,8 @@ struct OpenClawChatComposer: View {
     @Environment(\.openClawChatDesktopLayout) private var isDesktopLayout
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    // SIMPLE-UI: single-row composer for simplified hosts (ChatComposer+Pill.swift).
+    @Environment(\.openClawComposerPillStyle) private var pillStyle
     @Bindable var viewModel: OpenClawChatViewModel
     let style: OpenClawChatView.Style
     let showsSessionSwitcher: Bool
@@ -728,12 +730,12 @@ struct OpenClawChatComposer: View {
             }
         }
         #if os(iOS)
-        .frame(minHeight: CleanChatComposerMetrics.restingMinHeight, alignment: .bottom)
+        .frame(minHeight: self.pillStyle == nil ? CleanChatComposerMetrics.restingMinHeight : 0, alignment: .bottom)
         #else
             .padding(.horizontal, self.isDesktopLayout ? 0 : 6)
             .padding(.vertical, self.isDesktopLayout ? 0 : 2)
         #endif
-        .modifier(CleanChatComposerSurface(cornerRadius: self.cleanCornerRadius))
+        .modifier(ChatComposerSurfaceSelector(cornerRadius: self.cleanCornerRadius, pillStyle: self.pillStyle))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat-composer-surface")
     }
@@ -741,15 +743,20 @@ struct OpenClawChatComposer: View {
     @ViewBuilder
     private var cleanEditor: some View {
         #if os(iOS)
-        VStack(alignment: .leading, spacing: CleanChatComposerMetrics.rowGap) {
-            self.cleanDraftRow
-            HStack(alignment: .center, spacing: 0) {
-                self.cleanLeadingControls
-                Spacer(minLength: 0)
-                self.cleanTrailingControls
+        if self.pillStyle != nil {
+            // SIMPLE-UI: one row instead of the draft-plus-controls card.
+            self.pillEditorRow
+        } else {
+            VStack(alignment: .leading, spacing: CleanChatComposerMetrics.rowGap) {
+                self.cleanDraftRow
+                HStack(alignment: .center, spacing: 0) {
+                    self.cleanLeadingControls
+                    Spacer(minLength: 0)
+                    self.cleanTrailingControls
+                }
+                .padding(.horizontal, CleanChatComposerMetrics.footerInlineInset)
+                .padding(.bottom, CleanChatComposerMetrics.footerBlockInset)
             }
-            .padding(.horizontal, CleanChatComposerMetrics.footerInlineInset)
-            .padding(.bottom, CleanChatComposerMetrics.footerBlockInset)
         }
         #elseif os(macOS)
         if self.isDesktopLayout {
@@ -1352,7 +1359,8 @@ extension OpenClawChatComposer {
     }
 
     private var sendButtonFill: Color {
-        self.userAccent ?? OpenClawChatTheme.userBubble
+        // SIMPLE-UI: the pill composer's send button uses the host accent, not the bubble color.
+        self.pillStyle?.accent ?? self.userAccent ?? OpenClawChatTheme.userBubble
     }
 
     private var disabledSendButtonFill: Color {
@@ -1363,6 +1371,8 @@ extension OpenClawChatComposer {
         // The enabled glyph sits on sendButtonFill (the user accent when set);
         // pick contrast-aware ink so light accents stay readable.
         let disabledInk: Color = self.composerChrome == .full ? .white : .secondary.opacity(0.55)
+        // SIMPLE-UI: the pill accent is always dark enough for white ink.
+        if self.pillStyle != nil, self.canSendMessage { return .white }
         return self.canSendMessage ? OpenClawChatTheme.userText(on: self.userAccent) : disabledInk
     }
 
