@@ -31,8 +31,9 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         let app = self.launch(appearance: "light")
         let header = app.buttons["Simple.AgentHeader"].firstMatch
         XCTAssertTrue(header.waitForExistence(timeout: 10), "Agent header is missing")
-        header.tap()
-        XCTAssertTrue(app.buttons["Simple.Profile.activity"].waitForExistence(timeout: 5), "Profile sheet did not open")
+        XCTAssertTrue(
+            self.tap(header, until: app.buttons["Simple.Profile.activity"]),
+            "Profile sheet did not open")
         self.settle()
         self.capture("simple-profile-light")
     }
@@ -41,8 +42,7 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         let app = self.launch(appearance: "light")
         let chats = app.buttons["Simple.Chats.Show"].firstMatch
         XCTAssertTrue(chats.waitForExistence(timeout: 10), "Chats button is missing")
-        chats.tap()
-        XCTAssertTrue(app.buttons["Simple.Chats.Main"].waitForExistence(timeout: 5), "Chats sheet did not open")
+        XCTAssertTrue(self.tap(chats, until: app.buttons["Simple.Chats.Main"]), "Chats sheet did not open")
         self.settle()
         self.capture("simple-chats-light")
     }
@@ -50,6 +50,8 @@ final class SimpleShellSnapshotUITests: XCTestCase {
     private func captureTabs(appearance: String) {
         let app = self.launch(appearance: appearance)
         self.assertComposerClearsTabBar(in: app)
+        XCTAssertTrue(app.buttons["Simple.Tab.chat"].isSelected, "Chat should be the selected tab")
+        XCTAssertFalse(app.buttons["Simple.Tab.goals"].isSelected, "Only the current tab may read as selected")
         self.capture("simple-01-chat-\(appearance)")
         for (offset, tab) in ["library", "ideas", "goals", "more"].enumerated() {
             let button = app.buttons["Simple.Tab.\(tab)"]
@@ -72,6 +74,17 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             "The tab bar covers the message box")
     }
 
+    /// Taps `element` until `target` appears. A presentation requested while
+    /// the freshly launched app is still settling can be dropped, so one
+    /// retry keeps the capture from flaking without hiding a real failure.
+    private func tap(_ element: XCUIElement, until target: XCUIElement, attempts: Int = 2) -> Bool {
+        for _ in 0..<attempts {
+            element.tap()
+            if target.waitForExistence(timeout: 5) { return true }
+        }
+        return false
+    }
+
     @discardableResult
     private func launch(appearance: String) -> XCUIApplication {
         self.app?.terminate()
@@ -91,6 +104,8 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             app.descendants(matching: .any)["RootTabs.Ready"].waitForExistence(timeout: 30),
             "App never reported readiness")
         XCTAssertTrue(app.buttons["Simple.Tab.chat"].waitForExistence(timeout: 10), "Simple tab bar is missing")
+        // The chat finishing its first load is the best "settled" signal the demo data offers.
+        _ = app.descendants(matching: .any)["chat-message-input"].firstMatch.waitForExistence(timeout: 10)
         self.settle()
         return app
     }

@@ -54,7 +54,10 @@ struct SimpleTabBar: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(verbatim: tab.title))
                 .accessibilityValue(self.attention.contains(tab) ? Text("Needs attention") : Text(verbatim: ""))
-                .accessibilityAddTraits(self.selection == tab ? [.isSelected, .isButton] : .isButton)
+                // Only the current tab reads as selected; the icon (a checkbox on
+                // Goals) must not contribute a "selected" state of its own.
+                .accessibilityAddTraits(self.selection == tab ? .isSelected : [])
+                .accessibilityRemoveTraits(self.selection == tab ? [] : .isSelected)
                 .accessibilityIdentifier("Simple.Tab.\(tab.rawValue)")
             }
         }
@@ -82,6 +85,7 @@ struct SimpleTabBar: View {
             Image(systemName: tab.systemImage)
                 .font(.system(size: 21, weight: self.selection == tab ? .semibold : .regular))
                 .foregroundStyle(SimplePalette.ink)
+                .accessibilityHidden(true)
                 .overlay(alignment: .topTrailing) {
                     if self.attention.contains(tab) {
                         Circle()
