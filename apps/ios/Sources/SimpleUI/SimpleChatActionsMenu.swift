@@ -155,6 +155,7 @@ struct SimpleModelSettingsSheet: View {
                 .padding(.vertical, 8)
             }
             .simpleCanvas()
+            .environment(\.chatActionMenuAccent, SimplePalette.accent)
             .navigationTitle(Text("Model & thinking"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -51,6 +51,9 @@ struct ChatTalkButton: View {
         case compact(controlHeight: CGFloat, iconControlSize: CGFloat)
     }
 
+    // SIMPLE-UI: the pill composer's talk button uses the host accent.
+    @Environment(\.openClawComposerPillStyle) private var pillStyle
+
     let control: OpenClawChatTalkControl
     let sessionKey: String
     let helpText: String
@@ -139,11 +142,16 @@ struct ChatTalkButton: View {
             // mirroring the send button it swaps with once a draft exists.
             .background {
                 Circle()
-                    .fill(self.control.isEnabled ? self.fill : AnyShapeStyle(OpenClawChatTheme.accent))
+                    .fill(self.compactFill)
                     .opacity(self.control.isGatewayConnected || self.control.isEnabled ? 1 : 0.4)
             }
             .frame(width: controlHeight, height: controlHeight)
             .contentShape(Rectangle())
+    }
+
+    private var compactFill: AnyShapeStyle {
+        if let accent = self.pillStyle?.accent { return AnyShapeStyle(accent) }
+        return self.control.isEnabled ? self.fill : AnyShapeStyle(OpenClawChatTheme.accent)
     }
 
     private var fill: AnyShapeStyle {

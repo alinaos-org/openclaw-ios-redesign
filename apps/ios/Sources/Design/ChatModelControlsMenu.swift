@@ -10,6 +10,8 @@ enum ChatActionMenuMetric {
 }
 
 struct ChatActionSystemRow: View {
+    // SIMPLE-UI: hosts can recolor the menu accent (defaults to the brand red).
+    @Environment(\.chatActionMenuAccent) private var menuAccent
     let title: String
     let systemImage: String
     var isSelected = false
@@ -17,7 +19,7 @@ struct ChatActionSystemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: self.systemImage)
-                .foregroundStyle(OpenClawBrand.accent)
+                .foregroundStyle(self.menuAccent)
                 .frame(width: ChatActionMenuMetric.iconWidth, alignment: .leading)
                 .accessibilityHidden(true)
             Text(self.title)
@@ -27,7 +29,7 @@ struct ChatActionSystemRow: View {
             if self.isSelected {
                 Image(systemName: "checkmark")
                     .font(OpenClawType.body)
-                    .foregroundStyle(OpenClawBrand.accent)
+                    .foregroundStyle(self.menuAccent)
                     .accessibilityIdentifier("chat-menu-selection-checkmark")
             }
         }
@@ -68,6 +70,8 @@ struct ChatActionMenuSectionHeader: View {
 }
 
 private struct ChatActionResetButton: View {
+    // SIMPLE-UI: hosts can recolor the menu accent (defaults to the brand red).
+    @Environment(\.chatActionMenuAccent) private var menuAccent
     let accessibilityIdentifier: String
     let action: () -> Void
 
@@ -78,7 +82,7 @@ private struct ChatActionResetButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(OpenClawBrand.accent)
+        .foregroundStyle(self.menuAccent)
         .accessibilityLabel(String(localized: "Use default"))
         .accessibilityIdentifier(self.accessibilityIdentifier)
     }
@@ -239,6 +243,8 @@ private struct ChatModelProviderIcon: View {
 
 @MainActor
 struct ChatModelControlsMenuItems: View {
+    // SIMPLE-UI: hosts can recolor the menu accent (defaults to the brand red).
+    @Environment(\.chatActionMenuAccent) private var menuAccent
     @Bindable var viewModel: OpenClawChatViewModel
     let agentModelReference: String?
     let onSelection: @MainActor () -> Void
@@ -352,7 +358,7 @@ struct ChatModelControlsMenuItems: View {
                         }),
                     in: 0...Double(options.count - 1),
                     step: 1)
-                    .tint(OpenClawBrand.accent)
+                    .tint(self.menuAccent)
                     .disabled(self.viewModel.isUpdatingSessionSettings)
                     .accessibilityIdentifier("chat-thinking-slider")
                     .accessibilityLabel(String(localized: "Thinking level"))
@@ -401,7 +407,7 @@ struct ChatModelControlsMenuItems: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 Image(systemName: "bolt.fill")
-                    .foregroundStyle(OpenClawBrand.accent)
+                    .foregroundStyle(self.menuAccent)
                     .frame(width: ChatActionMenuMetric.iconWidth, alignment: .leading)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
@@ -439,7 +445,7 @@ struct ChatModelControlsMenuItems: View {
                             self.viewModel.selectFastMode(
                                 ChatFastModeControlPresentation.selectionID(isOn: !isOn))
                         })
-                        .tint(OpenClawBrand.accent)
+                        .tint(self.menuAccent)
                         .disabled(self.viewModel.isUpdatingSessionSettings)
                         .accessibilityIdentifier("chat-fast-mode-toggle")
                         .disabled(!self.viewModel.selectedModelSupportsFastMode)
@@ -462,7 +468,7 @@ struct ChatModelControlsMenuItems: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 Image(systemName: "text.alignleft")
-                    .foregroundStyle(OpenClawBrand.accent)
+                    .foregroundStyle(self.menuAccent)
                     .frame(width: ChatActionMenuMetric.iconWidth, alignment: .leading)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
@@ -557,7 +563,7 @@ struct ChatModelControlsMenuItems: View {
                     Spacer(minLength: 12)
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(OpenClawType.caption)
-                        .foregroundStyle(OpenClawBrand.accent)
+                        .foregroundStyle(self.menuAccent)
                         .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity, minHeight: ChatActionMenuMetric.rowHeight, alignment: .leading)
@@ -618,7 +624,7 @@ struct ChatModelControlsMenuItems: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(OpenClawType.body)
-                        .foregroundStyle(OpenClawBrand.accent)
+                        .foregroundStyle(self.menuAccent)
                         .accessibilityIdentifier("chat-menu-selection-checkmark")
                 }
             }

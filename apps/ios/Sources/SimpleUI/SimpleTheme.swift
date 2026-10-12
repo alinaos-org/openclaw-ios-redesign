@@ -124,6 +124,10 @@ extension EnvironmentValues {
     /// False for simple-layout tabs that stay mounted but hidden, so they can
     /// pause animation and stop audio.
     @Entry var simpleTabIsActive = true
+
+    /// Accent for the chat action rows and model controls. The classic layout
+    /// keeps OpenClaw's red; the simple layout's sheets use its blue.
+    @Entry var chatActionMenuAccent = OpenClawBrand.accent
 }
 
 /// Whether the simple layout replaces the classic sidebar layout.
