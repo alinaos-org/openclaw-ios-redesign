@@ -24,8 +24,10 @@ back, tap **✨** in the classic sidebar's footer.
 ## Status
 
 - [x] Shell: tabs, agent header with live status, chats and profile sheets, layout toggle
-- [x] Single-row composer
-- [ ] Tool cards and the Deny/Allow approval card
+- [x] Single-row composer, blue accents, and model sign-in only when it's needed
+- [x] Four-item chat menu; model and session options moved to a Model & thinking sheet
+- [x] Deny/Allow approval card
+- [ ] Tool cards
 - [ ] Friendlier onboarding and a native connectors screen
 - [ ] Ideas and goals proposed by your agent
 
