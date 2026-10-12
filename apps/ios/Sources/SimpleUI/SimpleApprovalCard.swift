@@ -24,43 +24,56 @@ struct SimpleApprovalCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    self.header
-                    self.preview
-                    if let warningText = self.prompt.warningText?.trimmedNonEmpty {
-                        Label {
-                            Text(verbatim: warningText)
-                                .font(OpenClawType.footnote)
-                        } icon: {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                        }
-                        .foregroundStyle(SimplePalette.attention)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-                    self.details
-                    self.status
+            // Hug the content; scroll only when a long request outgrows the card.
+            ViewThatFits(in: .vertical) {
+                self.review
+                ScrollView {
+                    self.review
                 }
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .accessibilityIdentifier("simple-approval-review")
 
             self.actions
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
                 .padding(.top, 4)
+                // Containers must be elements, or their identifier overrides every child's.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("simple-approval-actions")
         }
-        .background(
+        .background {
+            // Shadow the card's shape only; on the whole card it would also
+            // outline every block and button inside it.
             RoundedRectangle(cornerRadius: SimpleMetric.cardRadius, style: .continuous)
-                .fill(SimplePalette.surface))
+                .fill(SimplePalette.surface)
+                .shadow(color: .black.opacity(0.18), radius: 30, y: 12)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: SimpleMetric.cardRadius, style: .continuous)
                 .stroke(SimplePalette.hairline, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.18), radius: 30, y: 12)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("simple-approval-card")
+    }
+
+    private var review: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            self.header
+            self.preview
+            if let warningText = self.prompt.warningText?.trimmedNonEmpty {
+                Label {
+                    Text(verbatim: warningText)
+                        .font(OpenClawType.footnote)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .foregroundStyle(SimplePalette.attention)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            self.details
+            self.status
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Content
