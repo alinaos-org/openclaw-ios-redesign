@@ -34,6 +34,7 @@ struct SimpleChatChromeModifier<TopBar: View>: ViewModifier {
         if case let .simple(onTapAgent) = self.chrome {
             content
                 .environment(\.openClawComposerPillStyle, .simpleLayout)
+                .environment(\.openClawToolCardStyle, .simpleLayout)
                 .simpleCanvas()
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -72,6 +73,16 @@ enum SimpleStarterPrompts {
                 what you can access right now.
                 """)),
         ]
+    }
+}
+
+extension OpenClawChatToolCardStyle {
+    /// Quiet card with a light-blue icon tile.
+    static var simpleLayout: OpenClawChatToolCardStyle {
+        OpenClawChatToolCardStyle(
+            surface: SimplePalette.fill,
+            tile: SimplePalette.accentTint,
+            accent: SimplePalette.accent)
     }
 }
 

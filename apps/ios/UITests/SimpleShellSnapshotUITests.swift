@@ -78,6 +78,50 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-approval-\(appearance)")
     }
 
+    func testSimpleToolCardsLight() {
+        self.captureToolCards(appearance: "light")
+    }
+
+    func testSimpleToolCardsDark() {
+        self.captureToolCards(appearance: "dark")
+    }
+
+    /// The same tool fixture in the classic layout, for before/after review.
+    func testClassicToolRowsLight() {
+        self.app?.terminate()
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--openclaw-classic-shell",
+            "--openclaw-step-labels-fixture",
+            "--openclaw-screenshot-mode",
+            "--openclaw-ui-test-readiness",
+            "--openclaw-initial-tab",
+            "chat",
+            "--openclaw-sidebar-visibility",
+            "hidden",
+            "--openclaw-appearance",
+            "light",
+        ]
+        app.launch()
+        self.app = app
+        XCTAssertTrue(
+            app.descendants(matching: .any)["chat-tool-activity-fixture-exec"].waitForExistence(timeout: 30),
+            "Tool rows are missing")
+        self.settle()
+        self.capture("classic-tool-rows-light")
+    }
+
+    private func captureToolCards(appearance: String) {
+        let app = self.launch(appearance: appearance, additionalArguments: ["--openclaw-step-labels-fixture"])
+        let card = app.descendants(matching: .any)["chat-tool-activity-fixture-exec"].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15), "Tool cards are missing")
+        self.settle()
+        self.capture("simple-tool-cards-\(appearance)")
+        card.tap()
+        self.settle()
+        self.capture("simple-tool-cards-expanded-\(appearance)")
+    }
+
     private func captureTabs(appearance: String) {
         let app = self.launch(appearance: appearance)
         self.assertComposerClearsTabBar(in: app)

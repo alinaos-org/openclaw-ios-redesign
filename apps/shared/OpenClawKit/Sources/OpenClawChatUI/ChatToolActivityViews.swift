@@ -158,6 +158,8 @@ private struct ChatToolActivityRowContent: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // SIMPLE-UI: hosts can draw tool calls as cards (ChatToolCard.swift).
+    @Environment(\.openClawToolCardStyle) private var cardStyle
     let item: ChatToolActivityItem
     private let displayCall: (name: String?, args: AnyCodable?)
     private let resolvedDiff: (lines: [ChatToolDiffLine], stat: ChatToolDiffStat?)?
@@ -235,7 +237,7 @@ private struct ChatToolActivityRowContent: View {
                         self.expanded.toggle()
                     }
                 } label: {
-                    self.collapsedRow
+                    self.styledCollapsedRow
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -246,7 +248,7 @@ private struct ChatToolActivityRowContent: View {
                 .accessibilityHint(self.expanded ? "Collapse tool result" : "Expand tool result")
                 .accessibilityIdentifier("chat-tool-activity-\(self.item.id)")
             } else {
-                self.collapsedRow
+                self.styledCollapsedRow
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(self.display.title)
                     .accessibilityValue(self.accessibilityValue)
@@ -298,10 +300,10 @@ private struct ChatToolActivityRowContent: View {
                             .fill(OpenClawChatTheme.subtleCard)
                     }
                 }
-                .padding(.leading, self.isDesktopLayout ? 0 : 19)
+                .padding(.leading, self.isDesktopLayout || self.cardStyle != nil ? 0 : 19)
             }
         }
-        .modifier(ChatWorkCardStyle())
+        .modifier(ChatToolCardSurface(style: self.cardStyle))
     }
 
     private var collapsedRow: some View {
@@ -507,10 +509,12 @@ struct ChatDiffStatChips: View {
 
 struct ChatToolActivityList: View {
     @Environment(\.openClawChatDesktopLayout) private var isDesktopLayout
+    // SIMPLE-UI: cards need breathing room between them.
+    @Environment(\.openClawToolCardStyle) private var cardStyle
     let items: [ChatToolActivityItem]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: self.isDesktopLayout ? 6 : 2) {
+        VStack(alignment: .leading, spacing: self.isDesktopLayout || self.cardStyle != nil ? 6 : 2) {
             ForEach(self.items.indices.filter { self.items[$0].isVisible }, id: \.self) { index in
                 ChatToolActivityRow(item: self.items[index])
                     .equatable()
@@ -525,5 +529,77 @@ struct ChatToolActivityList: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// SIMPLE-UI: card presentation of a tool call, used when the host sets
+// `openClawToolCardStyle`. Lives in this file to share the row's state.
+extension ChatToolActivityRowContent {
+    @ViewBuilder
+    private var styledCollapsedRow: some View {
+        if let style = self.cardStyle {
+            self.cardRow(style)
+        } else {
+            self.collapsedRow
+        }
+    }
+
+    private func cardRow(_ style: OpenClawChatToolCardStyle) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: ChatToolIcon.symbol(for: self.display.name, icon: self.display.icon))
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(self.item.isError ? OpenClawChatTheme.danger : style.accent)
+                .frame(width: 34, height: 34)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(style.tile))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(self.item.activity?.preparedTitle ?? self.display.title)
+                    .font(OpenClawChatTypography.body(size: 15, weight: .semibold, relativeTo: .subheadline))
+                    .foregroundStyle(self.item.isError ? OpenClawChatTheme.danger : OpenClawChatTheme.assistantText)
+                    .lineLimit(1)
+                Text(verbatim: self.cardSubtitle)
+                    .font(OpenClawChatTypography.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 0)
+
+            if let stat = self.displayedDiffStat {
+                ChatDiffStatChips(stat: stat)
+            }
+            self.cardStatus(style)
+        }
+    }
+
+    /// What the call is doing, plus its outcome when that isn't simply "done".
+    private var cardSubtitle: String {
+        let state = self.item.displayState
+        let stateTitle = String(localized: state.title)
+        guard let detail = self.detailLine else { return stateTitle }
+        return state == .finished || state == .running ? detail : "\(detail) · \(stateTitle)"
+    }
+
+    @ViewBuilder
+    private func cardStatus(_ style: OpenClawChatToolCardStyle) -> some View {
+        if self.item.isPending {
+            ProgressView()
+                .controlSize(.small)
+        } else if self.item.isError {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(OpenClawChatTheme.danger)
+        } else if self.expandable {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(self.expanded ? 90 : 0))
+        } else if self.item.displayState == .finished {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(style.accent)
+        }
     }
 }

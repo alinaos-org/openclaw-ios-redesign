@@ -15,6 +15,8 @@ enum SimplePalette {
     static let tertiaryInk = adaptive(light: 0x9A9AA0, dark: 0x6E6E73)
     /// The single interactive accent. Readable as text on both canvases.
     static let accent = adaptive(light: 0x0064D4, dark: 0x1793FF)
+    /// Pale accent wash behind accent icons (tool card tiles).
+    static let accentTint = adaptive(light: 0xDCEBFB, dark: 0x1A3352)
     static let tabBar = adaptive(light: 0xF9F9F9, dark: 0x202022)
     static let tabSelection = adaptive(light: 0xEBEBEB, dark: 0x38383B)
     /// Quiet fill for secondary buttons (Deny) and inset rows.
