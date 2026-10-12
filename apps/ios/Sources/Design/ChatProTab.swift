@@ -36,6 +36,8 @@ struct ChatProTab: View {
 
     @Environment(NodeAppModel.self) private var appModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    // SIMPLE-UI: bubble ink follows the app's appearance override, not UIKit traits.
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(GatewayConnectionController.self) private var gatewayController
     @AppStorage("openclaw.webchat.showAssistantTrace")
     private var showsAssistantTrace = true
@@ -52,6 +54,8 @@ struct ChatProTab: View {
     @State private var isGatewayStatusManuallyExpanded = false
     let headerSidebarAction: OpenClawSidebarHeaderAction?
     let openSettings: () -> Void
+    // SIMPLE-UI: header and bubble styling for the simple layout (Sources/SimpleUI).
+    var chrome: ChatProTabChrome = .classic
 
     var body: some View {
         self.content
@@ -108,6 +112,11 @@ struct ChatProTab: View {
                     }
                 }
             }
+            // SIMPLE-UI: no-op in classic chrome; see `SimpleChatChromeModifier`.
+            .modifier(SimpleChatChromeModifier(
+                chrome: self.chrome,
+                topBar: { onTapAgent in self.simpleTopBar(onTapAgent: onTapAgent) },
+                onLeaveTab: { self.speech?.stop() }))
             .sheet(item: self.$transcriptShareItem) { item in
                 OpenClawChatFileShareSheet(fileURL: item.fileURL)
             }
@@ -155,8 +164,10 @@ struct ChatProTab: View {
                 isComposerEnabled: self.gatewayConnected || self.canQueueOffline,
                 isAttachmentInputEnabled: self.gatewayConnected || self.canQueueOffline,
                 messagePlaceholder: self.messagePlaceholder,
-                emptyAssistantIntro: String(localized: "What would you like to work on?"),
-                emptyAssistantPrompts: Self.emptyAssistantPrompts,
+                emptyAssistantIntro: self.chrome.isSimple
+                    ? SimpleStarterPrompts.intro
+                    : String(localized: "What would you like to work on?"),
+                emptyAssistantPrompts: self.chrome.isSimple ? SimpleStarterPrompts.chat : Self.emptyAssistantPrompts,
                 talkControl: Self.shouldExposeCaptureControl(
                     isAttachmentOwnerPinned: viewModel.isAttachmentOwnerPinned,
                     isCaptureInFlight: self.appModel.talkMode.isEnabled) ? self.talkControl : nil,
@@ -434,7 +445,11 @@ struct ChatProTab: View {
         .contentShape(Rectangle())
         .buttonStyle(.plain)
         .accessibilityLabel("Chat actions")
-        .popover(isPresented: self.$showsChatActions, attachmentAnchor: .rect(.bounds), arrowEdge: .top) {
+        .popover(
+            isPresented: self.chatActionsPresentation(simple: false),
+            attachmentAnchor: .rect(.bounds),
+            arrowEdge: .top)
+        {
             self.chatActionsPopover
                 .onDisappear {
                     self.performPendingChatAction()
@@ -663,7 +678,9 @@ struct ChatProTab: View {
     }
 
     private var chatUserAccent: Color {
-        ColorHexSupport.color(fromHex: self.appModel.gatewayAccentColorHex) ?? OpenClawBrand.accent
+        // SIMPLE-UI: light-blue user bubbles; ink contrast is derived from the fill.
+        if self.chrome.isSimple { return SimplePalette.userBubble(for: self.colorScheme) }
+        return ColorHexSupport.color(fromHex: self.appModel.gatewayAccentColorHex) ?? OpenClawBrand.accent
     }
 
     private var isAttachmentOwnerPinned: Bool {
@@ -726,4 +743,47 @@ struct ChatProTab: View {
             title: String(localized: "Help me start voice chat"),
             prompt: String(localized: "Help me start a realtime voice session from this phone.")),
     ]
+}
+
+// SIMPLE-UI: simple chrome support. Lives in this file because it reuses the tab's
+// private identity state and chat-actions popover.
+extension ChatProTab {
+    /// Only the visible header owns the shared chat-actions popover.
+    private func chatActionsPresentation(simple: Bool) -> Binding<Bool> {
+        self.chrome.isSimple == simple ? self.$showsChatActions : .constant(false)
+    }
+
+    private func simpleTopBar(onTapAgent: @escaping () -> Void) -> some View {
+        SimpleTopBar(
+            onTapAgent: onTapAgent,
+            leading: {
+                if let headerSidebarAction {
+                    SimpleCircleButton(
+                        systemImage: headerSidebarAction.systemName,
+                        accessibilityLabel: "Chats",
+                        accessibilityIdentifier: headerSidebarAction.accessibilityIdentifier ?? "Simple.Chats.Show",
+                        action: headerSidebarAction.action)
+                }
+            },
+            trailing: {
+                SimpleCircleButton(
+                    systemImage: "ellipsis",
+                    accessibilityLabel: "Chat actions",
+                    accessibilityIdentifier: "Simple.Chat.Actions")
+                {
+                    self.showsChatActions.toggle()
+                }
+                .popover(
+                    isPresented: self.chatActionsPresentation(simple: true),
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .top)
+                {
+                    self.chatActionsPopover
+                        .onDisappear {
+                            self.performPendingChatAction()
+                        }
+                        .presentationCompactAdaptation(.popover)
+                }
+            })
+    }
 }

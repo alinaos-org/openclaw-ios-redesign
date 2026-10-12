@@ -1,0 +1,176 @@
+# Fork-only workflow for the simple-layout iOS redesign (apps/ios/SIMPLE_UI.md).
+# Builds the iPhone app on a GitHub-hosted Mac, runs the linters and focused
+# unit tests, and publishes simulator screenshots of every simple-layout surface
+# as the `simple-ui-screenshots` artifact. Steps mirror upstream's `ios-build` CI job.
+name: Simple UI iOS
+
+on:
+  push:
+    branches: [simple-ui]
+    paths:
+      - "apps/ios/**"
+      - "apps/shared/**"
+      - "scripts/**"
+      - "config/swift*"
+      - "packages/gateway-protocol/**"
+      - ".github/workflows/simple-ui-ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: simple-ui-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.21.0"
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          source scripts/lib/swift-toolchain.sh
+          select_xcode_toolchain
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          install-bun: "false"
+          install-deps: "false"
+          cache-mode: "off"
+
+      - name: Install native asset dependencies
+        env:
+          CI: "true"
+        run: >-
+          pnpm install --frozen-lockfile --prefer-offline --optional
+          --filter '@openclaw/mermaid-renderer...'
+          --filter '@openclaw/gateway-protocol...'
+          --config.ignore-scripts=false
+          --config.engine-strict=false
+          --config.enable-pre-post-scripts=true
+
+      - name: Prepare Apple Mermaid assets
+        run: node scripts/prepare-apple-mermaid.mjs
+
+      - name: Install Watch Rust toolchain
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          watch_toolchain="$(awk -F '"' '/^channel =/ { print $2; exit }' apps/shared/OpenClawWatchRTC/rust-toolchain.toml)"
+          test -n "$watch_toolchain"
+          rustup toolchain install "$watch_toolchain" --profile minimal --component rust-src
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Install iOS Swift tooling
+        run: |
+          set -euo pipefail
+          swift_tools_dir="$RUNNER_TEMP/openclaw-swift-tools"
+          ./scripts/install-xcodegen.sh "$swift_tools_dir"
+          ./scripts/install-swift-tools.sh "$swift_tools_dir"
+          echo "$swift_tools_dir" >> "$GITHUB_PATH"
+
+      - name: Swift lint
+        run: |
+          set -euo pipefail
+          ./scripts/lint-swift.sh ios
+          ./scripts/format-swift.sh ios
+
+      - name: Pick and boot simulator
+        run: |
+          set -euo pipefail
+          source scripts/lib/swift-toolchain.sh
+          simulator_id="$(select_ios_test_simulator)"
+          echo "IOS_SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
+          xcrun simctl boot "$simulator_id" || true
+          xcrun simctl bootstatus "$simulator_id" -b
+
+      - name: Build for testing
+        run: |
+          set -euo pipefail
+          pnpm ios:gen
+          xcodebuild \
+            -project apps/ios/OpenClaw.xcodeproj \
+            -scheme OpenClaw \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -showBuildTimingSummary \
+            build-for-testing
+
+      - name: Unit tests (simple layout and typography)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project apps/ios/OpenClaw.xcodeproj \
+            -scheme OpenClaw \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -resultBundlePath "$RUNNER_TEMP/unit-tests.xcresult" \
+            -only-testing:OpenClawTests/SimpleAgentStatusTests \
+            -only-testing:OpenClawTests/SimpleCatalogTests \
+            -only-testing:OpenClawTests/SimpleShellPreferenceTests \
+            -only-testing:OpenClawTests/OpenClawTypographyTests \
+            test-without-building
+
+      - name: Capture simple-layout screenshots
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project apps/ios/OpenClaw.xcodeproj \
+            -scheme OpenClawUITests \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -resultBundlePath "$RUNNER_TEMP/ui-tests.xcresult" \
+            -only-testing:OpenClawUITests/SimpleShellSnapshotUITests \
+            test
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/simple-ui-screenshots"
+          if [[ -d "$RUNNER_TEMP/ui-tests.xcresult" ]]; then
+            xcrun xcresulttool export attachments \
+              --path "$RUNNER_TEMP/ui-tests.xcresult" \
+              --output-path "$RUNNER_TEMP/simple-ui-screenshots"
+          fi
+          ls -la "$RUNNER_TEMP/simple-ui-screenshots"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: simple-ui-screenshots
+          path: ${{ runner.temp }}/simple-ui-screenshots
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: simple-ui-test-results
+          path: |
+            ${{ runner.temp }}/unit-tests.xcresult
+            ${{ runner.temp }}/ui-tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 14

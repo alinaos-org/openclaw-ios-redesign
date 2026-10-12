@@ -69,6 +69,9 @@ struct RootTabs: View {
     @State private var didApplyInitialChatSession: Bool = false
     @State private var gatewaySetupRequest: GatewaySetupRequest?
     @State private var suppressedExecApprovalForNotificationSettings: NodeAppModel.ExecApprovalInboxKey?
+    // SIMPLE-UI: Simple layout state (see SIMPLE_UI.md and Sources/SimpleUI).
+    @AppStorage(SimpleShellPreference.storageKey) private var simpleShellEnabled = SimpleShellPreference.defaultEnabled
+    @State private var simpleTab: SimpleTab = .chat
 
     init(initialSidebarVisibility: Bool? = nil) {
         let resolvedVisibility = initialSidebarVisibility ?? Self.initialSidebarVisibility
@@ -119,6 +122,11 @@ struct RootTabs: View {
         case quickSetup
         case notificationSettings(path: String)
         case sessionDashboard(sessionKey: String, agentId: String?)
+        // SIMPLE-UI: simple-layout sheets share this presenter, so moving between
+        // them replaces the sheet instead of colliding with another presentation.
+        case simpleDestination(SidebarDestination)
+        case simpleChats
+        case simpleProfile
 
         var id: String {
             switch self {
@@ -126,6 +134,9 @@ struct RootTabs: View {
             case .notificationSettings: "notification-settings"
             case let .sessionDashboard(sessionKey, agentId):
                 "session-dashboard:\(agentId ?? ""):\(sessionKey)"
+            case let .simpleDestination(destination): "simple-destination:\(destination.rawValue)"
+            case .simpleChats: "simple-chats"
+            case .simpleProfile: "simple-profile"
             }
         }
     }
@@ -134,7 +145,8 @@ struct RootTabs: View {
         self.rootPresentation(
             self.rootLifecycle(
                 self.rootOverlays(
-                    self.sidebarSplitContent
+                    // SIMPLE-UI: was `self.sidebarSplitContent`; see `navigationRoot`.
+                    self.navigationRoot
                         .tint(OpenClawBrand.accent))))
             .overlay(alignment: .topLeading) {
                 self.uiTestReadinessMarker
@@ -395,6 +407,10 @@ struct RootTabs: View {
     }
 
     private var sidebarHeaderAction: OpenClawSidebarHeaderAction? {
+        // SIMPLE-UI: destinations open as sheets in the simple shell; the header action closes them.
+        if self.isSimpleShellActive {
+            return self.simpleSheetCloseAction
+        }
         guard Self.shouldShowSidebarRevealInDestinationHeader(
             isSidebarVisible: self.isSidebarVisible,
             layoutMode: self.isSidebarDrawerLayout ? .drawer : .split)
@@ -677,7 +693,8 @@ struct RootTabs: View {
                         })
                 }
             }
-            .sheet(item: self.$presentedSheet) { sheet in
+            // SIMPLE-UI: `onDismiss` resets simple-layout routing once a sheet has closed.
+            .sheet(item: self.$presentedSheet, onDismiss: self.handlePresentedSheetDismiss) { sheet in
                 switch sheet {
                 case .quickSetup:
                     GatewayQuickSetupSheet(onUseManualSetup: {
@@ -696,6 +713,8 @@ struct RootTabs: View {
                     NavigationStack {
                         SessionDashboardScreen(sessionKey: sessionKey, agentId: agentId)
                     }
+                case .simpleDestination, .simpleChats, .simpleProfile:
+                    self.simpleSheetContent(sheet)
                 }
             }
             .fullScreenCover(isPresented: self.$showOnboarding) {
@@ -715,7 +734,7 @@ struct RootTabs: View {
                     .environment(self.voiceWake)
                     .environment(self.gatewayController)
             }
-            .gatewayTrustPromptAlert(isEnabled: !self.showOnboarding)
+            .gatewayTrustPromptAlert(isEnabled: !self.showOnboarding && !self.isSimpleSheetPresented)
             .deepLinkAgentPromptAlert()
             .execApprovalPromptDialog(
                 suppressedApproval: self.activeExecApprovalPromptSuppression)
@@ -749,6 +768,11 @@ extension RootTabs {
         self.selectedSidebarDestination = destination
         self.selectedSettingsRoute = destination.settingsRoute
         self.activeSettingsRoute = destination.settingsRoute
+        // SIMPLE-UI: the simple shell shows destinations as tabs or sheets.
+        if self.isSimpleShellActive {
+            self.routeSimpleDestination(destination)
+            return
+        }
         guard self.isSidebarDrawerLayout else { return }
         self.hideSidebar()
     }
@@ -780,6 +804,11 @@ extension RootTabs {
         self.selectedSettingsRouteRequestID &+= 1
         self.selectedSidebarDestination = .settings
         self.sidebarNavigationPath = [route]
+        // SIMPLE-UI: Settings routes open in the simple destination sheet.
+        if self.isSimpleShellActive {
+            self.presentedSheet = .simpleDestination(.settings)
+            return
+        }
         guard self.isSidebarDrawerLayout else { return }
         self.hideSidebar()
     }
@@ -981,6 +1010,184 @@ extension RootTabs {
             discoveredGatewayCount: self.gatewayController.gateways.count)
         guard shouldPresent else { return }
         self.presentedSheet = .quickSetup
+    }
+}
+
+// SIMPLE-UI: Chooses between the simple shell and the classic sidebar shell. Everything
+// wrapped around `navigationRoot` (lifecycle, overlays, presentations) is shared by
+// both. Simple-layout sheets go through the root `presentedSheet` presenter and carry
+// their own copies of the root prompts, which cannot present over a sheet.
+extension RootTabs {
+    private var isSimpleShellActive: Bool {
+        SimpleShellPreference.launchOverride ?? self.simpleShellEnabled
+    }
+
+    private var isSimpleSheetPresented: Bool {
+        switch self.presentedSheet {
+        case .some(.simpleDestination), .some(.simpleChats), .some(.simpleProfile): true
+        default: false
+        }
+    }
+
+    private var navigationRoot: some View {
+        Group {
+            if self.isSimpleShellActive {
+                self.simpleShell
+            } else {
+                self.sidebarSplitContent
+            }
+        }
+        .onChange(of: self.isSimpleShellActive) { _, _ in
+            // Each layout starts with its own chrome closed.
+            self.isSidebarVisible = false
+            if self.isSimpleSheetPresented {
+                self.presentedSheet = nil
+            }
+        }
+    }
+
+    private var simpleShell: some View {
+        SimpleShell(
+            selectedTab: self.$simpleTab,
+            sidebarModel: self.sidebarModel,
+            openDestination: { self.selectSidebarDestination($0) },
+            openChats: { self.presentedSheet = .simpleChats },
+            openProfile: { self.presentedSheet = .simpleProfile },
+            useClassicInterface: {
+                self.presentedSheet = nil
+                self.simpleShellEnabled = false
+                self.selectSidebarDestination(.chat)
+            })
+            // Mirrors the refresh owners attached to the classic shell in
+            // `sidebarSplitContent`; keep the two in sync.
+            .task(id: self.sidebarRefreshID) {
+                guard self.scenePhase == .active else { return }
+                repeat {
+                    await self.sidebarModel.refresh(appModel: self.appModel)
+                    await self.appModel.refreshPendingApprovalInbox()
+                    guard !Task.isCancelled else { return }
+                    try? await Task.sleep(for: .seconds(600))
+                } while !Task.isCancelled
+            }
+            .task(id: "\(self.sidebarRefreshID):events") {
+                guard self.scenePhase == .active else { return }
+                await self.sidebarModel.observeSessionEvents(appModel: self.appModel)
+            }
+            .task(id: self.simpleSessionObserverTaskIdentity) {
+                await self.sidebarModel.setSessionObserverVisibility(
+                    appModel: self.appModel,
+                    visible: self.simpleSessionObserverTaskIdentity.isObserverVisible)
+            }
+    }
+
+    /// The chats sheet plays the sidebar's role for live session updates.
+    private var simpleSessionObserverTaskIdentity: SessionObserverTaskIdentity {
+        SessionObserverTaskIdentity(
+            sidebarRefreshID: self.sidebarRefreshID,
+            isSceneActive: self.scenePhase == .active,
+            isSidebarVisible: self.presentedSheet?.id == PresentedSheet.simpleChats.id)
+    }
+
+    private func simpleSheetContent(_ sheet: PresentedSheet) -> some View {
+        Group {
+            switch sheet {
+            case let .simpleDestination(destination):
+                // While one destination sheet slides away for another, routing has
+                // already moved on; render only the destination it was opened for.
+                if destination == self.selectedSidebarDestination {
+                    self.sidebarDetailNavigationShell
+                } else {
+                    SimplePalette.canvas.ignoresSafeArea()
+                }
+            case .simpleChats:
+                self.simpleChatsSheet
+            case .simpleProfile:
+                self.simpleProfileSheet
+            default:
+                EmptyView()
+            }
+        }
+        .gatewayTrustPromptAlert()
+        .deepLinkAgentPromptAlert()
+        .execApprovalPromptDialog(suppressedApproval: self.activeExecApprovalPromptSuppression)
+        .notificationPermissionGuidanceDialog(openNotifications: self.openNotificationSettings)
+    }
+
+    private var simpleChatsSheet: some View {
+        SimpleChatsSheet(
+            sidebarModel: self.sidebarModel,
+            onSelectMain: { mainKey in
+                self.presentedSheet = nil
+                self.appModel.openChat(sessionKey: mainKey)
+            },
+            onSelectSession: { session in
+                self.selectSidebarSession(session)
+            },
+            onNewChat: {
+                self.presentedSheet = nil
+                self.simpleTab = .chat
+                self.appModel.requestNewChat()
+            },
+            onOpenSettings: {
+                self.selectSidebarDestination(.settings)
+            })
+    }
+
+    private var simpleProfileSheet: some View {
+        SimpleAgentProfileSheet(
+            onStop: { self.appModel.chatPresentation.viewModel?.abort() },
+            onOpen: { link in
+                switch link {
+                case .activity:
+                    self.selectSidebarDestination(.activity)
+                case .permissions:
+                    self.selectSettingsRoute(.approvals)
+                case .upcoming:
+                    self.presentedSheet = nil
+                    self.simpleTab = .goals
+                case .memory:
+                    self.presentedSheet = nil
+                    self.simpleTab = .library
+                }
+            })
+    }
+
+    private var simpleSheetCloseAction: OpenClawSidebarHeaderAction {
+        OpenClawSidebarHeaderAction(
+            systemName: "xmark",
+            accessibilityLabel: .localized("Close"),
+            accessibilityIdentifier: "Simple.Sheet.Close",
+            action: { self.presentedSheet = nil })
+    }
+
+    /// Chat and Files are tabs; every other destination opens as a sheet.
+    private func routeSimpleDestination(_ destination: SidebarDestination) {
+        self.isSidebarVisible = false
+        switch destination {
+        case .chat:
+            if self.isSimpleSheetPresented { self.presentedSheet = nil }
+            self.simpleTab = .chat
+        case .files:
+            if self.isSimpleSheetPresented { self.presentedSheet = nil }
+            self.simpleTab = .library
+        default:
+            self.presentedSheet = .simpleDestination(destination)
+        }
+    }
+
+    /// Runs after a root sheet finishes dismissing. Once no destination sheet
+    /// remains, routing returns to the visible tab so a closed Approvals screen
+    /// can't keep suppressing prompts.
+    private func handlePresentedSheetDismiss() {
+        guard self.isSimpleShellActive else { return }
+        if case .some(.simpleDestination) = self.presentedSheet { return }
+        self.sidebarNavigationPath.removeAll()
+        self.activeSettingsRoute = nil
+        self.selectedSettingsRoute = nil
+        self.selectedSidebarDestination = self.simpleTab == .library ? .files : .chat
+        if self.presentedSheet == nil {
+            self.suppressedExecApprovalForNotificationSettings = nil
+        }
     }
 }
 

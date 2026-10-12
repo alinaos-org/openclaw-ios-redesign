@@ -511,6 +511,15 @@ struct RootSidebar: View {
 
                 Spacer(minLength: 4)
 
+                // SIMPLE-UI: one-tap way back to the simple layout from the classic layout.
+                self.headerIconButton(
+                    systemName: "sparkles",
+                    label: String(localized: "Switch to the simple layout"))
+                {
+                    UserDefaults.standard.set(true, forKey: SimpleShellPreference.storageKey)
+                }
+                .accessibilityIdentifier("Simple.SwitchToSimpleShell")
+
                 self.headerIconButton(
                     systemName: "gearshape",
                     label: String(localized: "Settings"))
