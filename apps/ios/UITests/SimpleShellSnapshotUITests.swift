@@ -104,17 +104,17 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         ]
         app.launch()
         self.app = app
-        XCTAssertTrue(
-            app.descendants(matching: .any)["chat-tool-activity-fixture-exec"].waitForExistence(timeout: 30),
-            "Tool rows are missing")
+        self.expandCompletedWork(in: app)
+        XCTAssertTrue(self.toolRow(in: app).waitForExistence(timeout: 10), "Tool rows are missing")
         self.settle()
         self.capture("classic-tool-rows-light")
     }
 
     private func captureToolCards(appearance: String) {
         let app = self.launch(appearance: appearance, additionalArguments: ["--openclaw-step-labels-fixture"])
-        let card = app.descendants(matching: .any)["chat-tool-activity-fixture-exec"].firstMatch
-        XCTAssertTrue(card.waitForExistence(timeout: 15), "Tool cards are missing")
+        self.expandCompletedWork(in: app)
+        let card = self.toolRow(in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 10), "Tool cards are missing")
         self.settle()
         self.capture("simple-tool-cards-\(appearance)")
         card.tap()
@@ -158,6 +158,29 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             if target.waitForExistence(timeout: 5) { return true }
         }
         return false
+    }
+
+    /// Finished turns fold their tool calls under "Worked for …"; open it.
+    private func expandCompletedWork(in app: XCUIApplication) {
+        let worked = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        let workedText = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        if worked.waitForExistence(timeout: 30) {
+            worked.tap()
+        } else if workedText.exists {
+            workedText.tap()
+        } else {
+            XCTFail("Completed work disclosure is missing")
+        }
+        self.settle()
+    }
+
+    /// The fixture's first exec call, by identifier or (if a container's identifier
+    /// replaced it) by its "Exec" label.
+    private func toolRow(in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ OR label BEGINSWITH %@",
+            "chat-tool-activity-fixture-exec",
+            "Exec")).firstMatch
     }
 
     @discardableResult
