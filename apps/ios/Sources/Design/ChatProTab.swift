@@ -151,7 +151,8 @@ struct ChatProTab: View {
             OpenClawChatView(
                 viewModel: viewModel,
                 resolveComposerModel: owner.composerModelResolver(),
-                drawsBackground: true,
+                // SIMPLE-UI: the simple chrome paints the layout's shared canvas instead.
+                drawsBackground: !self.chrome.isSimple,
                 showsSessionSwitcher: false,
                 userAccent: self.chatUserAccent,
                 showsAssistantTrace: self.showsAssistantTrace,

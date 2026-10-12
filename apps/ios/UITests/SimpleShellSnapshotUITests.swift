@@ -49,6 +49,7 @@ final class SimpleShellSnapshotUITests: XCTestCase {
 
     private func captureTabs(appearance: String) {
         let app = self.launch(appearance: appearance)
+        self.assertComposerClearsTabBar(in: app)
         self.capture("simple-01-chat-\(appearance)")
         for (offset, tab) in ["library", "ideas", "goals", "more"].enumerated() {
             let button = app.buttons["Simple.Tab.\(tab)"]
@@ -57,6 +58,18 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             self.settle()
             self.capture("simple-\(String(format: "%02d", offset + 2))-\(tab)-\(appearance)")
         }
+    }
+
+    /// The floating tab bar must never cover the chat's message box.
+    private func assertComposerClearsTabBar(in app: XCUIApplication) {
+        let input = app.descendants(matching: .any)["chat-message-input"].firstMatch
+        let tabBar = app.descendants(matching: .any)["Simple.TabBar"].firstMatch
+        XCTAssertTrue(input.waitForExistence(timeout: 10), "Message box is missing")
+        XCTAssertTrue(tabBar.exists, "Tab bar is missing")
+        XCTAssertLessThanOrEqual(
+            input.frame.maxY,
+            tabBar.frame.minY,
+            "The tab bar covers the message box")
     }
 
     @discardableResult

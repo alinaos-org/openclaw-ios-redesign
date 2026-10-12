@@ -17,9 +17,10 @@ enum ChatProTabChrome {
     }
 }
 
-/// Applies the simple chrome to `ChatProTab`: hides the navigation bar, adds
-/// the shared agent header, and stops read-aloud when the chat tab is hidden
-/// (simple-layout tabs stay mounted, so `onDisappear` never fires).
+/// Applies the simple chrome to `ChatProTab`: paints the shared canvas (the
+/// chat skips its own background in this chrome), hides the navigation bar,
+/// adds the shared agent header, and stops read-aloud when the chat tab is
+/// hidden (simple-layout tabs stay mounted, so `onDisappear` never fires).
 /// Classic chrome passes the content through unchanged.
 struct SimpleChatChromeModifier<TopBar: View>: ViewModifier {
     let chrome: ChatProTabChrome
@@ -31,6 +32,7 @@ struct SimpleChatChromeModifier<TopBar: View>: ViewModifier {
     func body(content: Content) -> some View {
         if case let .simple(onTapAgent) = self.chrome {
             content
+                .simpleCanvas()
                 .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     self.topBar(onTapAgent)

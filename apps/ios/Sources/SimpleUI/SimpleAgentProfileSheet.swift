@@ -129,7 +129,8 @@ struct SimpleAgentProfileSheet: View {
         }
         .scrollIndicators(.hidden)
         .simpleCanvas()
-        .presentationDetents([.medium, .large])
+        // Tall enough for all four shortcuts at default text size.
+        .presentationDetents([.fraction(0.75), .large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(SimpleMetric.cardRadius)
     }

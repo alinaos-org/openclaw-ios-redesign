@@ -70,8 +70,11 @@ enum SimpleMetric {
     static let headerAvatarSize: CGFloat = 44
     static let tabBarItemHeight: CGFloat = 52
     static let tabBarMaxWidth: CGFloat = 520
-    /// Breathing room under the last row; the tab bar's safe-area inset does the rest.
+    /// Breathing room under the last row; the tab bar's clearance inset does the rest.
     static let scrollBottomPadding: CGFloat = 16
+    /// Room each tab reserves for the floating tab bar: item height, the bar's
+    /// 6pt padding on both sides, its 4pt lift, and an 8pt gap above it.
+    static let tabBarClearance: CGFloat = 52 + 6 * 2 + 4 + 8
 }
 
 extension View {
@@ -87,6 +90,17 @@ extension View {
     /// Fills the page with the simple-layout canvas, edge to edge.
     func simpleCanvas() -> some View {
         self.background(SimplePalette.canvas.ignoresSafeArea())
+    }
+
+    /// Reserves room for the floating tab bar. Apply inside each tab's
+    /// `NavigationStack`: an inset applied outside the stack doesn't reliably
+    /// reach the content within it.
+    func simpleTabBarClearance(_ isTabBarVisible: Bool) -> some View {
+        self.safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear
+                .frame(height: isTabBarVisible ? SimpleMetric.tabBarClearance : 0)
+                .allowsHitTesting(false)
+        }
     }
 }
 

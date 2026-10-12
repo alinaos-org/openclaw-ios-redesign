@@ -39,8 +39,10 @@ struct SimpleShell: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !self.isKeyboardVisible {
+        // Drawn as an overlay; each tab reserves room for it with
+        // `simpleTabBarClearance` inside its own navigation stack.
+        .overlay(alignment: .bottom) {
+            if self.isTabBarVisible {
                 SimpleTabBar(selection: self.$selectedTab, attention: self.attentionTabs)
                     .padding(.bottom, 4)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -72,6 +74,7 @@ struct SimpleShell: View {
                     headerSidebarAction: self.chatsAction,
                     openSettings: { self.openDestination(.gateway) },
                     chrome: .simple(onTapAgent: self.openProfile))
+                    .simpleTabBarClearance(self.isTabBarVisible)
             }
         case .library:
             NavigationStack {
@@ -132,6 +135,7 @@ struct SimpleShell: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 SimpleTopBar(onTapAgent: self.openProfile, trailing: trailing)
             }
+            .simpleTabBarClearance(self.isTabBarVisible)
     }
 
     private var goalsMenu: some View {
@@ -171,6 +175,11 @@ struct SimpleShell: View {
     }
 
     // MARK: State
+
+    /// The bar steps aside for the software keyboard so the composer can rise.
+    private var isTabBarVisible: Bool {
+        !self.isKeyboardVisible
+    }
 
     private var libraryAgentID: String {
         self.appModel.selectedAgentId?.trimmedNonEmpty
