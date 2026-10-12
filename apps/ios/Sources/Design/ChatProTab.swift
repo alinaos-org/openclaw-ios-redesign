@@ -34,6 +34,8 @@ struct ChatProTab: View {
         case newSessionOptions
         // SIMPLE-UI: opens the composer's model sign-in sheet.
         case modelSignIn
+        // SIMPLE-UI: opens the simple layout's Model & thinking sheet.
+        case simpleModelSettings
     }
 
     @Environment(NodeAppModel.self) private var appModel
@@ -56,6 +58,7 @@ struct ChatProTab: View {
     @State private var isGatewayStatusManuallyExpanded = false
     // SIMPLE-UI: bumped to open model sign-in from the chat actions menu.
     @State private var modelSignInRequest = 0
+    @State private var showsSimpleModelSettings = false
     let headerSidebarAction: OpenClawSidebarHeaderAction?
     let openSettings: () -> Void
     // SIMPLE-UI: header and bubble styling for the simple layout (Sources/SimpleUI).
@@ -123,6 +126,10 @@ struct ChatProTab: View {
                 onLeaveTab: { self.speech?.stop() }))
             .sheet(item: self.$transcriptShareItem) { item in
                 OpenClawChatFileShareSheet(fileURL: item.fileURL)
+            }
+            // SIMPLE-UI: model tuning and session options for the simple ⋯ menu.
+            .sheet(isPresented: self.$showsSimpleModelSettings, onDismiss: self.performPendingChatAction) {
+                self.simpleModelSettingsSheet
             }
             .sheet(isPresented: self.$showsNewSessionOptions) {
                 if let viewModel {
@@ -493,17 +500,6 @@ struct ChatProTab: View {
                         self.showsChatActions = false
                     }
                 }
-                // SIMPLE-UI: the simple composer hides this link until sign-in is needed.
-                if self.chrome.isSimple {
-                    self.chatActionButton(
-                        title: "Sign in to a model provider…",
-                        systemImage: "key",
-                        disabled: self.viewModel == nil || !self.gatewayConnected)
-                    {
-                        self.pendingChatAction = .modelSignIn
-                    }
-                    .accessibilityIdentifier("chat-actions-model-sign-in")
-                }
 
                 Button {
                     self.showsAssistantTrace.toggle()
@@ -564,6 +560,8 @@ struct ChatProTab: View {
             self.showsNewSessionOptions = true
         case .modelSignIn:
             self.modelSignInRequest &+= 1
+        case .simpleModelSettings:
+            self.showsSimpleModelSettings = true
         }
     }
 
@@ -798,12 +796,62 @@ extension ChatProTab {
                     attachmentAnchor: .rect(.bounds),
                     arrowEdge: .top)
                 {
-                    self.chatActionsPopover
+                    self.simpleChatActionsPopover
                         .onDisappear {
                             self.performPendingChatAction()
                         }
                         .presentationCompactAdaptation(.popover)
                 }
             })
+    }
+
+    /// Four everyday actions; everything else sits behind "Model & thinking".
+    private var simpleChatActionsPopover: some View {
+        SimpleChatActionsMenu(
+            modelLabel: self.viewModel?.composerInlineModelLabel,
+            canStartChat: self.viewModel != nil && self.gatewayConnected && !self.isAttachmentOwnerPinned,
+            canShare: self.viewModel != nil,
+            onNewChat: {
+                self.showsChatActions = false
+                Task { await self.viewModel?.startNewSession() }
+            },
+            // Like the classic rows, follow-up sheets open once the popover has closed.
+            onModelSettings: {
+                self.pendingChatAction = .simpleModelSettings
+                self.showsChatActions = false
+            },
+            onShare: {
+                self.pendingChatAction = .exportTranscript
+                self.showsChatActions = false
+            },
+            onConnection: {
+                self.pendingChatAction = .gatewaySettings
+                self.showsChatActions = false
+            })
+    }
+
+    @ViewBuilder
+    private var simpleModelSettingsSheet: some View {
+        if let viewModel {
+            let canEditSession = self.gatewayConnected && !self.isAttachmentOwnerPinned
+            SimpleModelSettingsSheet(
+                viewModel: viewModel,
+                agentModelReference: self.activeAgentModelReference,
+                showsAssistantTrace: self.$showsAssistantTrace,
+                canEditSession: canEditSession,
+                canStartWorktreeChat: self.activeAgent?.workspacegit == true,
+                onSignIn: {
+                    self.pendingChatAction = .modelSignIn
+                    self.showsSimpleModelSettings = false
+                },
+                onNewSessionOptions: {
+                    self.pendingChatAction = .newSessionOptions
+                    self.showsSimpleModelSettings = false
+                },
+                onNewWorktreeChat: {
+                    self.showsSimpleModelSettings = false
+                    Task { await viewModel.startNewSession(worktree: true) }
+                })
+        }
     }
 }

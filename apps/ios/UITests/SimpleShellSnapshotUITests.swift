@@ -51,11 +51,15 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         let app = self.launch(appearance: "light")
         let actions = app.buttons["Simple.Chat.Actions"].firstMatch
         XCTAssertTrue(actions.waitForExistence(timeout: 10), "Chat actions button is missing")
-        XCTAssertTrue(
-            self.tap(actions, until: app.buttons["chat-actions-model-sign-in"]),
-            "Chat actions menu is missing model sign-in")
+        let modelSettings = app.buttons["simple-actions-model-settings"]
+        XCTAssertTrue(self.tap(actions, until: modelSettings), "Chat actions menu did not open")
         self.settle()
         self.capture("simple-chat-actions-light")
+        XCTAssertTrue(
+            self.tap(modelSettings, until: app.buttons["simple-model-sign-in"]),
+            "Model & thinking sheet did not open")
+        self.settle()
+        self.capture("simple-model-settings-light")
     }
 
     private func captureTabs(appearance: String) {
