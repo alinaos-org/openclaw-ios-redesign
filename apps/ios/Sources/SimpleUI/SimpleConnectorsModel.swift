@@ -117,8 +117,8 @@ extension SimplePhoneFeature.Kind {
 }
 
 /// A messaging app the gateway knows about, reduced to what the overview shows.
-struct SimpleMessagingApp: Identifiable, Equatable {
-    enum State: Equatable {
+struct SimpleMessagingApp: Identifiable, Equatable, Sendable {
+    enum State: Equatable, Sendable {
         case connected
         case attention(String)
         /// Set up on the gateway but not running.
@@ -195,8 +195,8 @@ struct SimpleChannelsStatusLite: Decodable, Equatable {
 }
 
 /// A skill the agent has, ready or waiting on setup.
-struct SimpleSkill: Identifiable, Equatable {
-    enum State: Equatable {
+struct SimpleSkill: Identifiable, Equatable, Sendable {
+    enum State: Equatable, Sendable {
         case ready
         case needsSetup(String)
     }
@@ -250,7 +250,8 @@ struct SimpleSkill: Identifiable, Equatable {
 @MainActor
 @Observable
 final class SimpleConnectorsModel {
-    enum Load<Value: Equatable>: Equatable {
+    /// Sendable so the two gateway loads can run side by side (`async let`).
+    enum Load<Value: Equatable & Sendable>: Equatable, Sendable {
         case loading
         case loaded(Value)
         case unavailable(String)
