@@ -129,6 +129,7 @@ struct RootTabs: View {
         case simpleChats
         case simpleProfile
         case simpleConnectors
+        case simpleDashboard(path: String, title: String)
 
         var id: String {
             switch self {
@@ -140,6 +141,7 @@ struct RootTabs: View {
             case .simpleChats: "simple-chats"
             case .simpleProfile: "simple-profile"
             case .simpleConnectors: "simple-connectors"
+            case let .simpleDashboard(path, _): "simple-dashboard:\(path)"
             }
         }
     }
@@ -718,7 +720,7 @@ struct RootTabs: View {
                     NavigationStack {
                         SessionDashboardScreen(sessionKey: sessionKey, agentId: agentId)
                     }
-                case .simpleDestination, .simpleChats, .simpleProfile, .simpleConnectors:
+                case .simpleDestination, .simpleChats, .simpleProfile, .simpleConnectors, .simpleDashboard:
                     self.simpleSheetContent(sheet)
                 }
             }
@@ -1039,7 +1041,9 @@ extension RootTabs {
 
     private var isSimpleSheetPresented: Bool {
         switch self.presentedSheet {
-        case .some(.simpleDestination), .some(.simpleChats), .some(.simpleProfile), .some(.simpleConnectors): true
+        case .some(.simpleDestination), .some(.simpleChats), .some(.simpleProfile), .some(.simpleConnectors),
+             .some(.simpleDashboard):
+            true
         default: false
         }
     }
@@ -1120,7 +1124,11 @@ extension RootTabs {
             case .simpleProfile:
                 self.simpleProfileSheet
             case .simpleConnectors:
-                SimpleConnectorsSheet()
+                SimpleConnectorsSheet { path, title in
+                    self.presentedSheet = .simpleDashboard(path: path, title: title)
+                }
+            case let .simpleDashboard(path, title):
+                DashboardPageScreen(path: path, title: title, onClose: { self.presentedSheet = nil })
             default:
                 EmptyView()
             }

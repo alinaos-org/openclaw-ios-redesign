@@ -274,6 +274,15 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             "Proposed goals are missing")
         self.settle()
         self.capture("simple-goals-proposals-\(appearance)")
+
+        // Automations sit below the fold in a lazy stack; scroll until one is on screen.
+        let automation = app.buttons["Simple.Goal.sample-morning-briefing"]
+        for _ in 0..<6 where !(automation.exists && automation.isHittable) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(automation.isHittable, "Goals should list the demo automations")
+        self.settle()
+        self.capture("simple-goals-automations-\(appearance)")
     }
 
     func testStartingAGoalAddsItToWorkingOn() {

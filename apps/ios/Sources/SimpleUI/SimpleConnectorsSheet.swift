@@ -6,7 +6,8 @@ import UIKit
 // SIMPLE-UI: Connectors: everything the agent can reach, in one place. This
 // iPhone's features come with a one-tap way to turn each on; messaging apps
 // and skills are set up on the computer, so those sections report status and
-// say what's missing.
+// say what's missing. On phones that can open the gateway's dashboard (admin
+// access, no browser sign-in), their rows open its Channels and Skills pages.
 
 struct SimpleConnectorsSheet: View {
     @Environment(NodeAppModel.self) private var appModel
@@ -19,7 +20,37 @@ struct SimpleConnectorsSheet: View {
     @State private var showsAllReadySkills = false
     @State private var showsSkillsNeedingSetup = false
 
+    /// Opens a dashboard page (path, title); RootTabs swaps it in for this sheet.
+    var onOpenDashboard: ((String, String) -> Void)?
+
     private static let readySkillPreviewCount = 6
+
+    /// Mirrors `DashboardPageScreen`, which otherwise falls back to native
+    /// Settings, which has no channels or skills pages.
+    private var canOpenDashboard: Bool {
+        self.onOpenDashboard != nil
+            && self.appModel.activeGatewayConnectConfig?.ingressAuthorization == nil
+            && SettingsHubScreen.usesDashboard(
+                isOperatorConnected: self.appModel.isOperatorGatewayConnected,
+                hasOperatorAdminScope: self.appModel.hasOperatorAdminScope,
+                isDemoMode: self.appModel.isAppleReviewDemoModeEnabled,
+                isScreenshotMode: self.appModel.isScreenshotFixtureModeEnabled)
+    }
+
+    private var messagingLoaded: Bool {
+        guard case .loaded = self.model.messaging else { return false }
+        return true
+    }
+
+    private var skillsLoaded: Bool {
+        guard case .loaded = self.model.skills else { return false }
+        return true
+    }
+
+    private func dashboardLink(_ path: String, title: String) -> (() -> Void)? {
+        guard self.canOpenDashboard, let onOpenDashboard = self.onOpenDashboard else { return nil }
+        return { onOpenDashboard(path, title) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -111,35 +142,44 @@ struct SimpleConnectorsSheet: View {
     }
 
     private var messagingSection: some View {
-        SimpleConnectorsSection(
+        let channelsLink = self.dashboardLink(
+            DashboardRouteMap.channelsSettingsPath,
+            title: String(localized: "Messaging apps"))
+        return SimpleConnectorsSection(
             title: Text("Messaging apps"),
-            footer: Text("Add or change messaging apps from OpenClaw on your computer."),
+            footer: channelsLink != nil && self.messagingLoaded
+                ? Text("Tap to add or manage messaging apps on your dashboard.")
+                : Text("Add or change messaging apps from OpenClaw on your computer."),
             identifier: "simple-connectors-messaging")
         {
             switch self.model.messaging {
             case .loading:
-                SimpleConnectorsPlaceholder(text: Text("Loading…"), showsProgress: true)
+                SimpleStatusNote(text: Text("Loading…"), showsProgress: true, insideCard: true)
             case let .unavailable(message):
-                SimpleConnectorsPlaceholder(text: Text(verbatim: message), showsProgress: false)
+                SimpleStatusNote(text: Text(verbatim: message), showsProgress: false, insideCard: true)
             case let .loaded(apps):
                 let setUp = apps.filter(\.isSetUp)
                 let available = apps.filter { !$0.isSetUp }
                 if setUp.isEmpty {
-                    SimpleConnectorsPlaceholder(
-                        text: Text("No messaging apps are set up yet."),
-                        showsProgress: false)
+                    SimpleConnectorLink(action: channelsLink) {
+                        SimpleStatusNote(
+                            text: Text("No messaging apps are set up yet."),
+                            insideCard: true)
+                    }
                 }
                 ForEach(setUp) { app in
-                    SimpleConnectorRow(
-                        title: Text(verbatim: app.name),
-                        subtitle: Self.subtitle(for: app))
-                    {
-                        SimpleIconTile(
-                            systemImage: app.systemImage ?? "bubble.left.and.bubble.right",
-                            tint: SimplePalette.Tint.green,
-                            size: 36)
-                    } trailing: {
-                        Self.statusMark(for: app.state)
+                    SimpleConnectorLink(action: channelsLink) {
+                        SimpleConnectorRow(
+                            title: Text(verbatim: app.name),
+                            subtitle: Self.subtitle(for: app))
+                        {
+                            SimpleIconTile(
+                                systemImage: app.systemImage ?? "bubble.left.and.bubble.right",
+                                tint: SimplePalette.Tint.green,
+                                size: 36)
+                        } trailing: {
+                            Self.statusMark(for: app.state)
+                        }
                     }
                     .accessibilityIdentifier("simple-connector-app-\(app.id)")
                     if app.id != setUp.last?.id || !available.isEmpty {
@@ -147,13 +187,16 @@ struct SimpleConnectorsSheet: View {
                     }
                 }
                 if !available.isEmpty {
-                    Text(verbatim: Self.availableSummary(available))
-                        .font(OpenClawType.footnote)
-                        .foregroundStyle(SimplePalette.secondaryInk)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                    // On dashboard phones this is the way to add one.
+                    SimpleConnectorLink(action: channelsLink) {
+                        Text(verbatim: Self.availableSummary(available))
+                            .font(OpenClawType.footnote)
+                            .foregroundStyle(SimplePalette.secondaryInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
                 }
             }
         }
@@ -162,20 +205,22 @@ struct SimpleConnectorsSheet: View {
     private var skillsSection: some View {
         SimpleConnectorsSection(
             title: Text("Skills"),
-            footer: Text("Skills are added and set up on your computer."),
+            footer: self.canOpenDashboard && self.skillsLoaded
+                ? Text("Tap one to manage skills on your dashboard.")
+                : Text("Skills are added and set up on your computer."),
             identifier: "simple-connectors-skills")
         {
             switch self.model.skills {
             case .loading:
-                SimpleConnectorsPlaceholder(text: Text("Loading…"), showsProgress: true)
+                SimpleStatusNote(text: Text("Loading…"), showsProgress: true, insideCard: true)
             case let .unavailable(message):
-                SimpleConnectorsPlaceholder(text: Text(verbatim: message), showsProgress: false)
+                SimpleStatusNote(text: Text(verbatim: message), showsProgress: false, insideCard: true)
             case let .loaded(skills):
                 let ready = skills.filter { $0.state == .ready }
                 let needsSetup = skills.filter { $0.state != .ready }
                 let shownReady = self.showsAllReadySkills ? ready : Array(ready.prefix(Self.readySkillPreviewCount))
                 if ready.isEmpty {
-                    SimpleConnectorsPlaceholder(text: Text("No skills are ready yet."), showsProgress: false)
+                    SimpleStatusNote(text: Text("No skills are ready yet."), showsProgress: false, insideCard: true)
                 }
                 let hasMoreRows = ready.count > shownReady.count || !needsSetup.isEmpty
                 ForEach(shownReady) { skill in
@@ -223,17 +268,21 @@ struct SimpleConnectorsSheet: View {
         case let .needsSetup(missing):
             Text(verbatim: missing)
         }
-        return SimpleConnectorRow(title: Text(verbatim: skill.name), subtitle: subtitle) {
-            Text(verbatim: skill.emoji ?? "✨")
-                .font(OpenClawType.title3)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: SimpleMetric.iconTileRadius, style: .continuous)
-                        .fill(SimplePalette.fill))
-                .accessibilityHidden(true)
-        } trailing: {
-            if skill.state == .ready {
-                Self.statusMark(for: .connected)
+        return SimpleConnectorLink(
+            action: self.dashboardLink(DashboardRouteMap.skillsPagePath, title: String(localized: "Skills")))
+        {
+            SimpleConnectorRow(title: Text(verbatim: skill.name), subtitle: subtitle) {
+                Text(verbatim: skill.emoji ?? "✨")
+                    .font(OpenClawType.title3)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: SimpleMetric.iconTileRadius, style: .continuous)
+                            .fill(SimplePalette.fill))
+                    .accessibilityHidden(true)
+            } trailing: {
+                if skill.state == .ready {
+                    Self.statusMark(for: .connected)
+                }
             }
         }
         .accessibilityIdentifier("simple-connector-skill-\(skill.id)")
@@ -426,22 +475,10 @@ private struct SimpleConnectorsSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            self.title
-                .font(OpenClawType.footnoteSemiBold)
-                .foregroundStyle(SimplePalette.secondaryInk)
-                .textCase(.uppercase)
-                .padding(.horizontal, SimpleMetric.gutter + 4)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) {
+            SimpleSectionTitle(text: self.title)
+            SimpleCard {
                 self.content
             }
-            .background(SimplePalette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous)
-                    .stroke(SimplePalette.hairline, lineWidth: 0.5)
-            }
-            .padding(.horizontal, SimpleMetric.gutter)
             if let footer {
                 footer
                     .font(OpenClawType.footnote)
@@ -453,6 +490,32 @@ private struct SimpleConnectorsSection<Content: View>: View {
         .padding(.top, 24)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(self.identifier)
+    }
+}
+
+/// A row that opens a dashboard page when the phone can show one, and is
+/// plain status otherwise.
+private struct SimpleConnectorLink<Content: View>: View {
+    let action: (() -> Void)?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if let action {
+            Button(action: action) {
+                HStack(spacing: 0) {
+                    self.content
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(SimplePalette.tertiaryInk)
+                        .padding(.trailing, 16)
+                        .accessibilityHidden(true)
+                }
+            }
+            .buttonStyle(SimpleRowButtonStyle())
+            .accessibilityHint(Text("Opens it on your dashboard"))
+        } else {
+            self.content
+        }
     }
 }
 
@@ -481,26 +544,5 @@ private struct SimpleConnectorRow<Icon: View, Trailing: View>: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
         .accessibilityElement(children: .contain)
-    }
-}
-
-private struct SimpleConnectorsPlaceholder: View {
-    let text: Text
-    let showsProgress: Bool
-
-    var body: some View {
-        HStack(spacing: 10) {
-            if self.showsProgress {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            self.text
-                .font(OpenClawType.subhead)
-                .foregroundStyle(SimplePalette.secondaryInk)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
     }
 }

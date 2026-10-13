@@ -47,7 +47,7 @@ power-user screen one tap away under **More**.
 | More | Every classic destination | Tab 5: a grouped list that opens each one as a sheet |
 | Approvals | `ExecApprovalPromptDialog` | Phase 2: restyle as the Deny/Allow card |
 | Profile sheet | Audit activity (`audit.activity.list`), standing grants (`exec.approval.grants.*`), cron jobs, `MEMORY.md` | Tabs: Activity (what it did, in plain language), Permissions (what automations may run without asking, with Remove), Upcoming (scheduled check-ins), Memory (what it remembers). Each links to the full screen. |
-| Connectors | Device permissions, channels, and skills, each only on the dashboard (admin phones) | Phase 3: a native Connectors sheet from More. It covers iPhone features with one-tap turn-on, messaging apps (`channels.status`), and skills (`skills.status`); both calls need only operator.read |
+| Connectors | Device permissions, channels, and skills, each only on the dashboard (admin phones) | Phase 3: a native Connectors sheet from More. It covers iPhone features with one-tap turn-on, messaging apps (`channels.status`), and skills (`skills.status`); both calls need only operator.read. On phones that can open the dashboard, messaging-app and skill rows open its Channels and Skills pages |
 
 ## Architecture: keep the fork rebasable
 

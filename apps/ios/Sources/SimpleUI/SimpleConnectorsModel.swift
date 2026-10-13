@@ -226,12 +226,41 @@ struct SimpleSkill: Identifiable, Equatable, Sendable {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    /// "apple-notes" → "Apple Notes".
+    /// "apple-notes" → "Apple Notes", "gh-issues" → "GitHub Issues".
     static func displayName(_ name: String) -> String {
         name.split(whereSeparator: { $0 == "-" || $0 == "_" })
-            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .map { word in
+                Self.brandSpellings[word.lowercased()] ?? word.prefix(1).uppercased() + word.dropFirst()
+            }
             .joined(separator: " ")
     }
+
+    /// Words skill ids spell differently from their product names, drawn from
+    /// upstream's bundled skills.
+    private static let brandSpellings: [String: String] = [
+        "1password": "1Password",
+        "ai": "AI",
+        "api": "API",
+        "clawhub": "ClawHub",
+        "cli": "CLI",
+        "gh": "GitHub",
+        "gif": "GIF",
+        "github": "GitHub",
+        "imessage": "iMessage",
+        "ios": "iOS",
+        "llm": "LLM",
+        "macos": "macOS",
+        "mcp": "MCP",
+        "onnx": "ONNX",
+        "openai": "OpenAI",
+        "openhue": "OpenHue",
+        "pdf": "PDF",
+        "tmux": "tmux",
+        "tts": "TTS",
+        "ui": "UI",
+        "url": "URL",
+        "youtube": "YouTube",
+    ]
 
     static func missingSummary(_ missing: SkillMissing) -> String {
         if let bin = missing.bins.first ?? missing.anyBins.first {
@@ -431,7 +460,7 @@ enum SimpleConnectorsSample {
             state: .ready),
         SimpleSkill(
             id: "github",
-            name: "Github",
+            name: "GitHub",
             emoji: "🐙",
             summary: "Issues, pull requests, and CI runs.",
             state: .needsSetup("Needs gh installed on your computer")),

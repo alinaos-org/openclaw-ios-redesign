@@ -246,3 +246,60 @@ struct SimpleRowDivider: View {
             .accessibilityHidden(true)
     }
 }
+
+/// Uppercase label above a card ("ON THIS IPHONE").
+struct SimpleSectionTitle: View {
+    let text: Text
+
+    var body: some View {
+        self.text
+            .font(OpenClawType.footnoteSemiBold)
+            .foregroundStyle(SimplePalette.secondaryInk)
+            .textCase(.uppercase)
+            .padding(.horizontal, SimpleMetric.gutter + 4)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A rounded surface holding rows, inset from the screen edges.
+struct SimpleCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            self.content
+        }
+        .background(SimplePalette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous)
+                .stroke(SimplePalette.hairline, lineWidth: 0.5)
+        }
+        .padding(.horizontal, SimpleMetric.gutter)
+    }
+}
+
+/// A short status line: loading, nothing yet, or why something can't load.
+/// Inside a card it lines up with the card's rows; on the canvas, with
+/// section titles.
+struct SimpleStatusNote: View {
+    let text: Text
+    var showsProgress = false
+    var insideCard = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if self.showsProgress {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            self.text
+                .font(OpenClawType.subhead)
+                .foregroundStyle(SimplePalette.secondaryInk)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, self.insideCard ? 16 : SimpleMetric.gutter + 4)
+        .padding(.vertical, self.insideCard ? 14 : 8)
+    }
+}

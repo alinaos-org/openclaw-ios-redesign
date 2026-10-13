@@ -126,6 +126,7 @@ jobs:
             -only-testing:OpenClawTests/SimpleCatalogTests \
             -only-testing:OpenClawTests/SimpleShellPreferenceTests \
             -only-testing:OpenClawTests/SimpleConnectorsTests \
+            -only-testing:OpenClawTests/SimpleSkillNameTests \
             -only-testing:OpenClawTests/SimpleProposalsTests \
             -only-testing:OpenClawTests/SimpleProfileTests \
             -only-testing:OpenClawTests/SimpleAgentJobsTests \

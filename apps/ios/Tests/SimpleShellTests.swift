@@ -231,12 +231,28 @@ struct SimpleConnectorsTests {
         """
         let report = try JSONDecoder().decode(SkillsStatusReport.self, from: Data(json.utf8))
         let skills = SimpleSkill.skills(from: report)
-        #expect(skills.map(\.name) == ["Apple Notes", "Github", "Spotify Player", "Weather"])
+        #expect(skills.map(\.name) == ["Apple Notes", "GitHub", "Spotify Player", "Weather"])
         let states = Dictionary(uniqueKeysWithValues: skills.map { ($0.id, $0.state) })
         #expect(states["weather"] == .ready)
         #expect(states["github"] == .needsSetup("Needs gh installed on your computer"))
         #expect(states["spotify-player"] == .needsSetup("Needs SPOTIFY_CLIENT_ID set on your computer"))
         #expect(states["legacy"] == nil)
+    }
+}
+
+struct SimpleSkillNameTests {
+    @Test(arguments: [
+        ("apple-notes", "Apple Notes"),
+        ("gh-issues", "GitHub Issues"),
+        ("1password", "1Password"),
+        ("openai-whisper-api", "OpenAI Whisper API"),
+        ("sherpa-onnx-tts", "Sherpa ONNX TTS"),
+        ("nano-pdf", "Nano PDF"),
+        ("control_ui", "Control UI"),
+        ("tmux", "tmux"),
+    ])
+    func `skill ids read as product names`(id: String, expected: String) {
+        #expect(SimpleSkill.displayName(id) == expected)
     }
 }
 

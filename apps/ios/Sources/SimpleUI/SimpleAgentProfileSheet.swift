@@ -185,18 +185,18 @@ private struct SimpleProfileActivityTab: View {
         VStack(alignment: .leading, spacing: 14) {
             switch self.load {
             case .loading:
-                SimpleProfilePlaceholder(text: Text("Loading…"), showsProgress: true)
+                SimpleStatusNote(text: Text("Loading…"), showsProgress: true)
             case let .unavailable(message):
-                SimpleProfilePlaceholder(text: Text(verbatim: message), showsProgress: false)
+                SimpleStatusNote(text: Text(verbatim: message), showsProgress: false)
             case let .loaded(items) where items.isEmpty:
-                SimpleProfilePlaceholder(
+                SimpleStatusNote(
                     text: Text("Nothing yet. When I search, read, or run things for you, it shows up here."),
                     showsProgress: false)
             case let .loaded(items):
                 ForEach(Self.days(items), id: \.day) { group in
                     VStack(alignment: .leading, spacing: 6) {
-                        SimpleProfileSectionTitle(text: Text(verbatim: Self.dayTitle(group.day)))
-                        SimpleProfileCard {
+                        SimpleSectionTitle(text: Text(verbatim: Self.dayTitle(group.day)))
+                        SimpleCard {
                             ForEach(group.items) { item in
                                 SimpleProfileActivityRow(item: item)
                                 if item.id != group.items.last?.id {
@@ -283,21 +283,21 @@ private struct SimpleProfilePermissionsTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                SimpleProfileSectionTitle(text: Text("Without asking"))
+                SimpleSectionTitle(text: Text("Without asking"))
                 switch self.load {
                 case .loading:
-                    SimpleProfilePlaceholder(text: Text("Loading…"), showsProgress: true)
+                    SimpleStatusNote(text: Text("Loading…"), showsProgress: true)
                 case let .unavailable(message):
-                    SimpleProfilePlaceholder(text: Text(verbatim: message), showsProgress: false)
+                    SimpleStatusNote(text: Text(verbatim: message), showsProgress: false)
                 case let .loaded(grants) where grants.isEmpty:
-                    SimpleProfilePlaceholder(
+                    SimpleStatusNote(
                         text: Text("""
                         Nothing yet. When you tap Always allow on a request from one of my automations, it \
                         shows up here.
                         """),
                         showsProgress: false)
                 case let .loaded(grants):
-                    SimpleProfileCard {
+                    SimpleCard {
                         ForEach(grants) { grant in
                             self.row(grant)
                             if grant.id != grants.last?.id {
@@ -312,7 +312,7 @@ private struct SimpleProfilePermissionsTab: View {
                 .foregroundStyle(SimplePalette.secondaryInk)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, SimpleMetric.gutter + 4)
-            SimpleProfileCard {
+            SimpleCard {
                 Button(action: self.onOpenConnectors) {
                     HStack(spacing: 14) {
                         SimpleIconTile(systemImage: "iphone", tint: SimplePalette.accent, size: 36)
@@ -396,11 +396,11 @@ private struct SimpleProfileUpcomingTab: View {
             .sorted { ($0.nextrunatms ?? .max) < ($1.nextrunatms ?? .max) }
         VStack(alignment: .leading, spacing: 14) {
             if upcoming.isEmpty {
-                SimpleProfilePlaceholder(
+                SimpleStatusNote(
                     text: Text("Nothing scheduled. Ask me to check in on something and it shows up here."),
                     showsProgress: false)
             } else {
-                SimpleProfileCard {
+                SimpleCard {
                     ForEach(upcoming, id: \.id) { job in
                         SimpleProfileUpcomingRow(job: job)
                         if job.id != upcoming.last?.id {
@@ -468,11 +468,11 @@ private struct SimpleProfileMemoryTab: View {
         VStack(alignment: .leading, spacing: 14) {
             switch self.load {
             case .loading:
-                SimpleProfilePlaceholder(text: Text("Loading…"), showsProgress: true)
+                SimpleStatusNote(text: Text("Loading…"), showsProgress: true)
             case let .unavailable(message):
-                SimpleProfilePlaceholder(text: Text(verbatim: message), showsProgress: false)
+                SimpleStatusNote(text: Text(verbatim: message), showsProgress: false)
             case let .loaded(blocks) where blocks.isEmpty:
-                SimpleProfilePlaceholder(
+                SimpleStatusNote(
                     text: Text("""
                     I haven't saved anything about you yet. Tell me what matters to you and I'll remember it.
                     """),
@@ -548,57 +548,6 @@ private struct SimpleProfileMemoryTab: View {
 }
 
 // MARK: - Building blocks
-
-private struct SimpleProfileSectionTitle: View {
-    let text: Text
-
-    var body: some View {
-        self.text
-            .font(OpenClawType.footnoteSemiBold)
-            .foregroundStyle(SimplePalette.secondaryInk)
-            .textCase(.uppercase)
-            .padding(.horizontal, SimpleMetric.gutter + 4)
-            .accessibilityAddTraits(.isHeader)
-    }
-}
-
-private struct SimpleProfileCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(spacing: 0) {
-            self.content
-        }
-        .background(SimplePalette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous)
-                .stroke(SimplePalette.hairline, lineWidth: 0.5)
-        }
-        .padding(.horizontal, SimpleMetric.gutter)
-    }
-}
-
-private struct SimpleProfilePlaceholder: View {
-    let text: Text
-    let showsProgress: Bool
-
-    var body: some View {
-        HStack(spacing: 10) {
-            if self.showsProgress {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            self.text
-                .font(OpenClawType.subhead)
-                .foregroundStyle(SimplePalette.secondaryInk)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, SimpleMetric.gutter + 4)
-        .padding(.vertical, 8)
-    }
-}
 
 private struct SimpleProfileLinkButton: View {
     let title: Text
