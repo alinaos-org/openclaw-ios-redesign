@@ -1,5 +1,6 @@
 import OpenClawChatUI
 import OpenClawKit
+import OpenClawProtocol
 import SwiftUI
 
 // SIMPLE-UI: Plain-language "what is my agent doing" summary, shown under the
@@ -148,6 +149,22 @@ enum SimpleAgentIdentity {
     static func agentID(appModel: NodeAppModel) -> String {
         (appModel.chatAgentId.trimmedNonEmpty ?? appModel.gatewayDefaultAgentId?.trimmedNonEmpty ?? "main")
             .lowercased()
+    }
+
+    /// The chat agent's automations, for Goals and the profile's Upcoming tab.
+    @MainActor
+    static func jobs(_ jobs: [CronJob], appModel: NodeAppModel) -> [CronJob] {
+        let agentID = self.agentID(appModel: appModel)
+        let defaultAgentID = appModel.gatewayDefaultAgentId?.trimmedNonEmpty?.lowercased() ?? "main"
+        return jobs.filter {
+            self.owns(jobAgentID: $0.agentid, agentID: agentID, defaultAgentID: defaultAgentID)
+        }
+    }
+
+    /// Whether a job belongs to `agentID`; a job without an agent runs on the
+    /// gateway's default agent.
+    static func owns(jobAgentID: String?, agentID: String, defaultAgentID: String) -> Bool {
+        (jobAgentID?.trimmedNonEmpty?.lowercased() ?? defaultAgentID) == agentID
     }
 
     /// The name the agent was given on the gateway; nil when only its id is

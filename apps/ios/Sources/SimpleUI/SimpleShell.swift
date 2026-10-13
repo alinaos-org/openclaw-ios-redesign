@@ -153,7 +153,7 @@ struct SimpleShell: View {
 
     private var goalsScreen: some View {
         SimpleGoalsScreen(
-            jobs: self.sidebarModel.cronJobs,
+            jobs: SimpleAgentIdentity.jobs(self.sidebarModel.cronJobs, appModel: self.appModel),
             proposals: self.proposals,
             agentName: SimpleAgentIdentity.givenName(appModel: self.appModel),
             actions: self.proposalActions,
@@ -230,8 +230,10 @@ struct SimpleShell: View {
             ?? "main"
     }
 
+    /// Goals only flags this agent's failing automations, the ones it lists.
     private var attentionTabs: Set<SimpleTab> {
-        self.sidebarModel.failedCronJobCount > 0 ? [.goals] : []
+        let jobs = SimpleAgentIdentity.jobs(self.sidebarModel.cronJobs, appModel: self.appModel)
+        return jobs.contains { RootSidebarModel.isFailedCronJob($0) } ? [.goals] : []
     }
 
     private var chatsAction: OpenClawSidebarHeaderAction {

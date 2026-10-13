@@ -110,13 +110,6 @@ struct SimpleAgentProfileSheet: View {
         .presentationCornerRadius(SimpleMetric.cardRadius)
     }
 
-    /// Automations for this agent; jobs without one run on the default agent.
-    private var agentJobs: [CronJob] {
-        let agentID = SimpleAgentIdentity.agentID(appModel: self.appModel)
-        let defaultAgent = self.appModel.gatewayDefaultAgentId?.trimmedNonEmpty?.lowercased() ?? "main"
-        return self.jobs.filter { ($0.agentid?.trimmedNonEmpty?.lowercased() ?? defaultAgent) == agentID }
-    }
-
     private var showsError: Binding<Bool> {
         Binding(
             get: { self.model.errorMessage != nil },
@@ -135,7 +128,9 @@ struct SimpleAgentProfileSheet: View {
                 onRevoke: { grant in Task { await self.model.revoke(grant, appModel: self.appModel) } },
                 onOpenConnectors: { self.onOpen(.connectors) })
         case .upcoming:
-            SimpleProfileUpcomingTab(jobs: self.agentJobs) { self.onOpen(.goals) }
+            SimpleProfileUpcomingTab(jobs: SimpleAgentIdentity.jobs(self.jobs, appModel: self.appModel)) {
+                self.onOpen(.goals)
+            }
         case .memory:
             SimpleProfileMemoryTab(load: self.model.memory) { self.onOpen(.library) }
         }

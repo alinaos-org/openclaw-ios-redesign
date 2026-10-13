@@ -102,6 +102,18 @@ struct SimpleCatalogTests {
     }
 }
 
+struct SimpleAgentJobsTests {
+    @Test func `jobs belong to their agent or the default one`() {
+        #expect(SimpleAgentIdentity.owns(jobAgentID: "main", agentID: "main", defaultAgentID: "main"))
+        #expect(SimpleAgentIdentity.owns(jobAgentID: " Work ", agentID: "work", defaultAgentID: "main"))
+        #expect(!SimpleAgentIdentity.owns(jobAgentID: "work", agentID: "main", defaultAgentID: "main"))
+        // No agent on the job: it runs on the default agent.
+        #expect(SimpleAgentIdentity.owns(jobAgentID: nil, agentID: "main", defaultAgentID: "main"))
+        #expect(!SimpleAgentIdentity.owns(jobAgentID: nil, agentID: "work", defaultAgentID: "main"))
+        #expect(SimpleAgentIdentity.owns(jobAgentID: "", agentID: "work", defaultAgentID: "work"))
+    }
+}
+
 struct SimpleShellPreferenceTests {
     @Test func `no shell is forced without launch flags`() {
         // The unit-test host launches without UI-test flags, so the stored
