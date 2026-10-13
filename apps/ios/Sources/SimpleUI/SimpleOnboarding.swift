@@ -194,6 +194,9 @@ struct SimpleOnboardingReady: View {
 
 // MARK: - Building blocks
 
+/// Readable column width for the onboarding pages on wide screens.
+private let simpleOnboardingMaxWidth: CGFloat = 440
+
 /// A scrolling page with progress dots on top and its buttons pinned within
 /// thumb reach. The wizard draws the close button in the top-leading corner.
 private struct SimpleOnboardingPage<Content: View, Actions: View>: View {
@@ -201,14 +204,12 @@ private struct SimpleOnboardingPage<Content: View, Actions: View>: View {
     @ViewBuilder let content: Content
     @ViewBuilder let actions: Actions
 
-    private static let maxWidth: CGFloat = 440
-
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 self.content
             }
-            .frame(maxWidth: Self.maxWidth)
+            .frame(maxWidth: simpleOnboardingMaxWidth)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 24)
             .padding(.top, 72)
@@ -220,7 +221,7 @@ private struct SimpleOnboardingPage<Content: View, Actions: View>: View {
             VStack(spacing: 6) {
                 self.actions
             }
-            .frame(maxWidth: Self.maxWidth)
+            .frame(maxWidth: simpleOnboardingMaxWidth)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
