@@ -78,6 +78,100 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-approval-\(appearance)")
     }
 
+    func testSimpleOnboardingLight() {
+        self.walkOnboarding(appearance: "light")
+    }
+
+    func testSimpleOnboardingDark() {
+        self.walkOnboarding(appearance: "dark")
+    }
+
+    /// First run in the simple layout: welcome, connect, then the demo setup
+    /// code through the wizard's manual step to the ready screen and chat.
+    private func walkOnboarding(appearance: String) {
+        self.addUIInterruptionMonitor(withDescription: "Local network access") { alert in
+            guard alert.buttons["Allow"].exists else { return false }
+            alert.buttons["Allow"].tap()
+            return true
+        }
+        self.app?.terminate()
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--openclaw-reset-onboarding",
+            "--openclaw-simple-shell",
+            "--openclaw-appearance",
+            appearance,
+        ]
+        app.launch()
+        self.app = app
+
+        let start = app.buttons["simple-onboarding-start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 30), "Welcome screen is missing")
+        let trust = app.descendants(matching: .any)["simple-onboarding-trust"]
+        XCTAssertTrue(trust.exists, "The first screen must say what a connected agent can use")
+        XCTAssertLessThanOrEqual(
+            trust.frame.maxY,
+            start.frame.minY,
+            "The trust note must be visible above Get started without scrolling")
+        self.settle()
+        self.capture("simple-onboarding-welcome-\(appearance)")
+
+        start.tap()
+        // Gives the interruption monitor a chance to answer the local network prompt.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
+        XCTAssertTrue(
+            app.buttons["simple-onboarding-scan"].waitForExistence(timeout: 10),
+            "Connect screen is missing")
+        self.settle()
+        self.capture("simple-onboarding-connect-\(appearance)")
+
+        app.buttons["simple-onboarding-other-ways"].tap()
+        let setupCode = app.textFields["Enter setup code"]
+        XCTAssertTrue(setupCode.waitForExistence(timeout: 10), "Manual setup step is missing")
+        setupCode.tap()
+        setupCode.typeText("APPLE-REVIEW-DEMO")
+        app.buttons["Dismiss Keyboard"].tap()
+        app.buttons["Apply"].tap()
+
+        let done = app.buttons["simple-onboarding-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 15), "Ready screen is missing")
+        self.settle()
+        self.capture("simple-onboarding-ready-\(appearance)")
+
+        done.tap()
+        XCTAssertTrue(
+            app.buttons["Simple.Tab.chat"].waitForExistence(timeout: 10),
+            "Finishing onboarding should land in the simple layout")
+    }
+
+    /// Settings opens in a sheet in the simple layout; resetting onboarding
+    /// there must close it and show the first-run screens.
+    func testResetOnboardingFromSimpleSettings() {
+        let app = self.launch(appearance: "light")
+        app.buttons["Simple.Tab.more"].tap()
+        let connection = app.buttons["Simple.More.gateway"]
+        for _ in 0..<6 where !connection.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(connection.isHittable, "Connection row is missing from More")
+        connection.tap()
+
+        let reset = app.buttons["Reset Onboarding"]
+        XCTAssertTrue(reset.waitForExistence(timeout: 10), "Connection settings did not open")
+        for _ in 0..<10 where !reset.isHittable {
+            app.swipeUp()
+        }
+        reset.tap()
+        let confirm = app.alerts["Reset Onboarding?"].buttons["Reset"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "Reset confirmation is missing")
+        confirm.tap()
+
+        XCTAssertTrue(
+            app.buttons["simple-onboarding-start"].waitForExistence(timeout: 15),
+            "Resetting onboarding from a simple sheet should show the first-run screens")
+        self.capture("simple-onboarding-after-reset-light")
+    }
+
     func testSimpleToolCardsLight() {
         self.captureToolCards(appearance: "light")
     }

@@ -72,6 +72,7 @@ struct RootTabs: View {
     // SIMPLE-UI: Simple layout state (see SIMPLE_UI.md and Sources/SimpleUI).
     @AppStorage(SimpleShellPreference.storageKey) private var simpleShellEnabled = SimpleShellPreference.defaultEnabled
     @State private var simpleTab: SimpleTab = .chat
+    @State private var showsOnboardingAfterSimpleSheet = false
 
     init(initialSidebarVisibility: Bool? = nil) {
         let resolvedVisibility = initialSidebarVisibility ?? Self.initialSidebarVisibility
@@ -735,6 +736,8 @@ struct RootTabs: View {
                     .environment(self.appModel)
                     .environment(self.voiceWake)
                     .environment(self.gatewayController)
+                    // SIMPLE-UI: friendlier first-run screens in the simple layout.
+                    .environment(\.usesSimpleOnboarding, self.isSimpleShellActive)
             }
             .gatewayTrustPromptAlert(isEnabled: !self.showOnboarding && !self.isSimpleSheetPresented)
             .deepLinkAgentPromptAlert()
@@ -914,6 +917,14 @@ extension RootTabs {
 
     private func evaluateOnboardingPresentation(force: Bool) {
         if force {
+            // SIMPLE-UI: Settings opens in a sheet in the simple layout, and the
+            // cover can't show over it. Close it; its dismissal shows onboarding.
+            // Reset bumps the request twice, so a pending close keeps waiting too.
+            if self.isSimpleSheetPresented || self.showsOnboardingAfterSimpleSheet {
+                self.showsOnboardingAfterSimpleSheet = true
+                self.presentedSheet = nil
+                return
+            }
             self.showOnboarding = true
             return
         }
@@ -1189,6 +1200,10 @@ extension RootTabs {
         self.selectedSidebarDestination = self.simpleTab == .library ? .files : .chat
         if self.presentedSheet == nil {
             self.suppressedExecApprovalForNotificationSettings = nil
+            if self.showsOnboardingAfterSimpleSheet {
+                self.showsOnboardingAfterSimpleSheet = false
+                self.showOnboarding = true
+            }
         }
     }
 }

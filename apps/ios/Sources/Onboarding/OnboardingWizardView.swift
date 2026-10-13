@@ -17,6 +17,8 @@ struct OnboardingWizardView: View {
     @Environment(NodeAppModel.self) private var appModel: NodeAppModel
     @Environment(GatewayConnectionController.self) private var gatewayController: GatewayConnectionController
     @Environment(\.scenePhase) private var scenePhase
+    // SIMPLE-UI: the simple layout's versions of the full-screen steps.
+    @Environment(\.usesSimpleOnboarding) private var usesSimpleOnboarding
     @AppStorage("node.instanceId") private var instanceId: String = UUID().uuidString
     @AppStorage("gateway.discovery.domain") private var discoveryDomain: String = ""
     @AppStorage("onboarding.developerMode") private var developerModeEnabled: Bool = false
@@ -137,11 +139,23 @@ struct OnboardingWizardView: View {
             Group {
                 switch self.step {
                 case .intro:
-                    OnboardingIntroStep(onContinue: self.advanceFromIntro)
+                    if self.usesSimpleOnboarding {
+                        SimpleOnboardingWelcome(step: OnboardingIntroStep(onContinue: self.advanceFromIntro))
+                    } else {
+                        OnboardingIntroStep(onContinue: self.advanceFromIntro)
+                    }
                 case .welcome:
-                    self.welcomeStep
+                    if self.usesSimpleOnboarding {
+                        SimpleOnboardingConnect(step: self.welcomeStep)
+                    } else {
+                        self.welcomeStep
+                    }
                 case .success:
-                    self.successStep
+                    if self.usesSimpleOnboarding {
+                        SimpleOnboardingReady(step: self.successStep)
+                    } else {
+                        self.successStep
+                    }
                 default:
                     Form {
                         switch self.step {
@@ -366,6 +380,15 @@ struct OnboardingWizardView: View {
                     .accessibilityLabel("Back")
             }
             .buttonStyle(OpenClawCloseButtonStyle())
+        } else if self.allowSkip, self.usesSimpleOnboarding {
+            SimpleCircleButton(
+                systemImage: "xmark",
+                accessibilityLabel: "Close",
+                accessibilityIdentifier: "simple-onboarding-close")
+            {
+                self.invalidateSetupAttempt()
+                self.onClose()
+            }
         } else if self.allowSkip {
             Button {
                 self.invalidateSetupAttempt()
@@ -405,7 +428,7 @@ struct OnboardingWizardView: View {
         }
     }
 
-    private var welcomeStep: some View {
+    private var welcomeStep: OnboardingWelcomeStep {
         OnboardingWelcomeStep(
             statusLine: self.statusLine,
             isConnecting: self.connectingGateway != nil,
@@ -636,7 +659,7 @@ struct OnboardingWizardView: View {
         }
     }
 
-    private var successStep: some View {
+    private var successStep: OnboardingSuccessStep {
         OnboardingSuccessStep(
             gatewayName: self.appModel.gatewayServerName ?? "gateway",
             gatewayAddress: self.appModel.gatewayRemoteAddress,

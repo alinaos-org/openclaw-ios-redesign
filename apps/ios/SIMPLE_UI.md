@@ -73,9 +73,13 @@ Upstream's iOS app gets more than 40 PRs a week. To keep conflicts small:
   Ideas / Goals / More tabs, Chats sheet, simple profile sheet, layout toggle.
 - **Phase 2: chat polish.** Composer pill (`+` / Message / mic), tool cards with
   status and an "Open" button, typing dots, the Deny/Allow approval card, artifact cards.
-- **Phase 3: onboarding.** A friendly 3-step flow (meet your agent → name it →
-  connect to your gateway by QR) wrapping the existing wizard, plus a native
-  Connectors sheet over skills and channels.
+- **Phase 3: onboarding.** A friendly 3-step first run (meet your agent →
+  connect your computer by QR → say hi to your agent by name) in front of the
+  existing wizard, plus a native Connectors sheet over skills and channels.
+  The simple screens replace only the wizard's full-screen steps and call its
+  actions; setup codes, manual addresses, pairing approval, and recovery stay
+  on the wizard's own screens. Naming the agent from the phone is deferred:
+  the app never writes agent config to the gateway today.
 - **Phase 4: proactive.** Agent-generated Ideas, Goals with progress, and the profile sheet
   with Activity / Permissions / Upcoming / Memory segments.
 

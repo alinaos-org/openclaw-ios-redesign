@@ -27,8 +27,9 @@ back, tap **✨** in the classic sidebar's footer.
 - [x] Single-row composer, blue accents, and model sign-in only when it's needed
 - [x] Four-item chat menu; model and session options moved to a Model & thinking sheet
 - [x] Deny/Allow approval card
-- [x] Tool activity cards
-- [ ] Friendlier onboarding and a native connectors screen
+- [x] Tool activity cards, named in plain language ("Ran a command", "Ran 3 steps")
+- [x] Friendlier first run: meet your agent, connect your computer, say hi
+- [ ] A native connectors screen
 - [ ] Ideas and goals proposed by your agent
 
 The design and plan are in [`apps/ios/SIMPLE_UI.md`](/apps/ios/SIMPLE_UI.md).
