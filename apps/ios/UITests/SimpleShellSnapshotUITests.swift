@@ -28,14 +28,34 @@ final class SimpleShellSnapshotUITests: XCTestCase {
     }
 
     func testSimpleAgentProfileSheet() {
-        let app = self.launch(appearance: "light")
+        self.captureProfile(appearance: "light")
+    }
+
+    func testSimpleAgentProfileSheetDark() {
+        self.captureProfile(appearance: "dark")
+    }
+
+    /// The profile sheet's four tabs with the demo agent's data.
+    private func captureProfile(appearance: String) {
+        let app = self.launch(appearance: appearance)
         let header = app.buttons["Simple.AgentHeader"].firstMatch
         XCTAssertTrue(header.waitForExistence(timeout: 10), "Agent header is missing")
         XCTAssertTrue(
-            self.tap(header, until: app.buttons["Simple.Profile.activity"]),
+            self.tap(header, until: app.buttons["Simple.Profile.Tab.activity"]),
             "Profile sheet did not open")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Simple.Profile.ActivityTab"].waitForExistence(timeout: 5),
+            "Activity tab is missing")
         self.settle()
-        self.capture("simple-profile-light")
+        self.capture("simple-profile-\(appearance)")
+        for tab in ["permissions", "upcoming", "memory"] {
+            app.buttons["Simple.Profile.Tab.\(tab)"].tap()
+            let content = app.descendants(matching: .any)["Simple.Profile.\(tab.capitalized)Tab"]
+            XCTAssertTrue(content.waitForExistence(timeout: 5), "\(tab) tab is missing")
+            XCTAssertTrue(app.buttons["Simple.Profile.Tab.\(tab)"].isSelected, "\(tab) should read as selected")
+            self.settle(seconds: 0.8)
+            self.capture("simple-profile-\(tab)-\(appearance)")
+        }
     }
 
     func testSimpleChatsSheet() {

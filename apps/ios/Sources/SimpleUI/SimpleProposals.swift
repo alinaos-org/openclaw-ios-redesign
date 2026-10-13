@@ -143,6 +143,12 @@ struct SimpleWorkspaceFileLite: Decodable, Sendable {
 
     var file: File
 
+    /// The gateway's answer for a path that doesn't exist, as opposed to a
+    /// timeout or another failure.
+    static func isMissingFile(_ error: Error) -> Bool {
+        (error as? GatewayResponseError)?.details["type"]?.stringValue == "workspace_file_not_found"
+    }
+
     var text: String? {
         guard self.file.encoding == "base64" else { return self.file.content }
         return Data(base64Encoded: self.file.content).flatMap { String(data: $0, encoding: .utf8) }
@@ -231,7 +237,8 @@ final class SimpleProposalsModel {
         case .missing:
             self.proposals = []
             self.proposalsUpdatedAt = nil
-        case .unreadable:
+        case .unreadable, .failed:
+            // Keep what's shown; a failed read says nothing about the file.
             break
         }
         if let goals = await goals { self.goals = goals }
@@ -323,6 +330,7 @@ final class SimpleProposalsModel {
         case loaded([SimpleProposal], Date)
         case missing
         case unreadable
+        case failed
     }
 
     private func replace(_ goal: SimpleSessionGoal, status: SimpleSessionGoal.Status) {
@@ -345,25 +353,19 @@ final class SimpleProposalsModel {
         }
     }
 
-    /// The chat's agent, normalized the way the gateway stores agent ids.
-    private static func agentID(appModel: NodeAppModel) -> String {
-        (appModel.chatAgentId.trimmedNonEmpty ?? appModel.gatewayDefaultAgentId?.trimmedNonEmpty ?? "main")
-            .lowercased()
-    }
-
     private static func loadProposals(appModel: NodeAppModel) async -> FileLoad {
         let data: Data
         do {
             data = try await appModel.operatorSession.request(
                 method: "agents.workspace.get",
                 params: [
-                    "agentId": AnyCodable(Self.agentID(appModel: appModel)),
+                    "agentId": AnyCodable(SimpleAgentIdentity.agentID(appModel: appModel)),
                     "path": AnyCodable(SimpleIdeasFile.path),
                 ],
                 timeoutMs: 12000)
         } catch {
-            // Usually the file doesn't exist yet: the agent hasn't been asked.
-            return .missing
+            // Missing until the agent is first asked for ideas.
+            return SimpleWorkspaceFileLite.isMissingFile(error) ? .missing : .failed
         }
         guard let file = try? JSONDecoder().decode(SimpleWorkspaceFileLite.self, from: data),
               let text = file.text,
@@ -377,7 +379,7 @@ final class SimpleProposalsModel {
             limit: 200,
             search: nil,
             archived: false,
-            agentID: Self.agentID(appModel: appModel))
+            agentID: SimpleAgentIdentity.agentID(appModel: appModel))
         do {
             let data = try await appModel.operatorSession.request(
                 method: request.method,
@@ -392,7 +394,7 @@ final class SimpleProposalsModel {
     /// Starts the goal on a new chat key; goal admission creates the chat, so
     /// a failed start leaves nothing behind.
     private static func sendGoalStart(objective: String, appModel: NodeAppModel) async throws -> String {
-        let agentID = Self.agentID(appModel: appModel)
+        let agentID = SimpleAgentIdentity.agentID(appModel: appModel)
         let sessionKey = "agent:\(agentID):ios-\(UUID().uuidString.lowercased())"
         let intent: [String: AnyCodable] = [
             "kind": AnyCodable("session-goal-start"),

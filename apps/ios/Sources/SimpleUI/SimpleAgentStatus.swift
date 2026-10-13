@@ -143,6 +143,13 @@ enum SimpleAgentIdentity {
         self.givenName(appModel: appModel) ?? appModel.chatAgentName
     }
 
+    /// The chat's agent id, normalized the way the gateway stores agent ids.
+    @MainActor
+    static func agentID(appModel: NodeAppModel) -> String {
+        (appModel.chatAgentId.trimmedNonEmpty ?? appModel.gatewayDefaultAgentId?.trimmedNonEmpty ?? "main")
+            .lowercased()
+    }
+
     /// The name the agent was given on the gateway; nil when only its id is
     /// known, so copy can say "your agent" instead of "Main".
     @MainActor

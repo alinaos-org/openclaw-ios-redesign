@@ -1153,17 +1153,18 @@ extension RootTabs {
 
     private var simpleProfileSheet: some View {
         SimpleAgentProfileSheet(
+            jobs: self.sidebarModel.cronJobs,
             onStop: { self.appModel.chatPresentation.viewModel?.abort() },
             onOpen: { link in
                 switch link {
-                case .activity:
+                case .allActivity:
                     self.selectSidebarDestination(.activity)
-                case .permissions:
-                    self.selectSettingsRoute(.approvals)
-                case .upcoming:
+                case .connectors:
+                    self.presentedSheet = .simpleConnectors
+                case .goals:
                     self.presentedSheet = nil
                     self.simpleTab = .goals
-                case .memory:
+                case .library:
                     self.presentedSheet = nil
                     self.simpleTab = .library
                 }

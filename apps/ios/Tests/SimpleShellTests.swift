@@ -297,3 +297,80 @@ struct SimpleProposalsTests {
         }
     }
 }
+
+struct SimpleProfileTests {
+    @Test func `activity keeps finished tool actions in plain language`() throws {
+        let json = """
+        {"events": [
+          {"eventId": "6", "occurredAt": 6000, "action": "tool.action.finished", "status": "succeeded",
+           "toolName": "read", "runId": "r2"},
+          {"eventId": "5", "occurredAt": 5000, "action": "tool.action.started", "status": "started",
+           "toolName": "read", "runId": "r2"},
+          {"eventId": "4", "occurredAt": 4000, "action": "tool.action.finished", "status": "succeeded",
+           "toolName": "read", "runId": "r2"},
+          {"eventId": "3", "occurredAt": 3000, "action": "tool.action.finished", "status": "succeeded",
+           "toolName": "read", "runId": "r1"},
+          {"eventId": "2", "occurredAt": 2000, "action": "tool.action.finished", "status": "failed",
+           "toolName": "exec", "runId": "r1", "errorCode": "tool_failed"},
+          {"eventId": "1", "occurredAt": 1000, "action": "agent.run.finished", "status": "succeeded",
+           "runId": "r1"}
+        ]}
+        """
+        let items = try JSONDecoder().decode(SimpleAuditActivityLite.self, from: Data(json.utf8)).items
+        #expect(items.map(\.title) == ["Read files", "Read files", "Ran a command"])
+        // Back-to-back reads in one run merge; the same tool in another run doesn't.
+        #expect(items.map(\.count) == [2, 1, 1])
+        #expect(items.map(\.failed) == [false, false, true])
+        #expect(items.first?.occurredAt == Date(timeIntervalSince1970: 6))
+    }
+
+    @Test func `permissions list live grants for this agent`() throws {
+        let json = """
+        {"grants": [
+          {"grantId": "a", "mintedByApprovalId": "x", "agentId": "main", "cronJobId": "c1",
+           "cronJobName": "Morning briefing", "command": "curl wttr.in", "cwd": null, "createdAtMs": 1,
+           "expiresAtMs": null, "revokedAtMs": null, "revokedBy": null, "lastUsedAtMs": 5000, "useCount": 3},
+          {"grantId": "b", "mintedByApprovalId": "x", "agentId": "Main", "cronJobId": "c2",
+           "cronJobName": null, "command": "tmutil latestbackup", "cwd": null, "createdAtMs": 1,
+           "expiresAtMs": 9000000000000, "revokedAtMs": null, "revokedBy": null, "lastUsedAtMs": null,
+           "useCount": 7},
+          {"grantId": "c", "mintedByApprovalId": "x", "agentId": "main", "cronJobId": "c3",
+           "cronJobName": "Old", "command": "ls", "cwd": null, "createdAtMs": 1,
+           "expiresAtMs": null, "revokedAtMs": 2, "revokedBy": "me", "lastUsedAtMs": null, "useCount": 9},
+          {"grantId": "d", "mintedByApprovalId": "x", "agentId": "main", "cronJobId": "c4",
+           "cronJobName": "Expired", "command": "ls", "cwd": null, "createdAtMs": 1,
+           "expiresAtMs": 10, "revokedAtMs": null, "revokedBy": null, "lastUsedAtMs": null, "useCount": 9},
+          {"grantId": "e", "mintedByApprovalId": "x", "agentId": "work", "cronJobId": "c5",
+           "cronJobName": "Other agent", "command": "ls", "cwd": null, "createdAtMs": 1,
+           "expiresAtMs": null, "revokedAtMs": null, "revokedBy": null, "lastUsedAtMs": null, "useCount": 9}
+        ]}
+        """
+        let grants = try JSONDecoder().decode(SimpleGrantsLite.self, from: Data(json.utf8))
+            .active(agentID: "main", now: Date(timeIntervalSince1970: 100))
+        #expect(grants.map(\.id) == ["b", "a"])
+        #expect(grants.first?.automation == nil)
+        #expect(grants.last?.automation == "Morning briefing")
+    }
+
+    @Test func `memory splits into headings bullets and paragraphs`() {
+        let markdown = """
+        # About you
+        - Lives in Porto.
+        * Prefers **short** briefings.
+
+        ---
+        Product designer.
+        Deep work on Tuesdays.
+        ## Lists
+        - [ ] Renew passport
+        """
+        #expect(SimpleMemoryBlock.blocks(from: markdown) == [
+            .heading("About you"),
+            .bullet("Lives in Porto."),
+            .bullet("Prefers **short** briefings."),
+            .paragraph("Product designer.\nDeep work on Tuesdays."),
+            .heading("Lists"),
+            .bullet("Renew passport"),
+        ])
+    }
+}

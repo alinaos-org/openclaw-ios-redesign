@@ -46,7 +46,7 @@ power-user screen one tap away under **More**.
 | Goals | Session goals (`sessions.list` rows' `goal`, `chat.send` goal intent, `sessions.goal.update`) + cron jobs (`RootSidebarModel.cronJobs`) | Tab 4: "Working on" (goals with status and the latest note), goal proposals (`"kind": "goal"` entries in `ideas.json`), an inline "Start a goal" field, automations as tracked check-ins, and planning templates |
 | More | Every classic destination | Tab 5: a grouped list that opens each one as a sheet |
 | Approvals | `ExecApprovalPromptDialog` | Phase 2: restyle as the Deny/Allow card |
-| Profile sheet | Activity dashboard, approvals settings, cron, workspace memory files | Phase 1 has simple rows. Phase 2 adds segments. |
+| Profile sheet | Audit activity (`audit.activity.list`), standing grants (`exec.approval.grants.*`), cron jobs, `MEMORY.md` | Tabs: Activity (what it did, in plain language), Permissions (what automations may run without asking, with Remove), Upcoming (scheduled check-ins), Memory (what it remembers). Each links to the full screen. |
 | Connectors | Device permissions, channels, and skills, each only on the dashboard (admin phones) | Phase 3: a native Connectors sheet from More. It covers iPhone features with one-tap turn-on, messaging apps (`channels.status`), and skills (`skills.status`); both calls need only operator.read |
 
 ## Architecture: keep the fork rebasable
@@ -93,7 +93,11 @@ Upstream's iOS app gets more than 40 PRs a week. To keep conflicts small:
   admin access. The phone can't write the workspace, so "Not now" is
   remembered on the phone. Starting a goal sends the objective with the
   `session-goal-start` intent to a new chat key (admission creates the chat);
-  each chat holds one goal. The profile sheet segments are still to do.
+  each chat holds one goal. The profile sheet's tabs are done too: Activity
+  reads the audit feed (finished tool actions, 30 days, in the tool cards'
+  plain language), Permissions lists standing grants (automation commands
+  allowed without asking; needs operator.approvals), Upcoming lists cron
+  jobs by next run, and Memory renders `MEMORY.md`.
 
 ## Building without a Mac
 

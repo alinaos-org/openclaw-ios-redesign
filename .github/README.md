@@ -12,7 +12,7 @@ notifications, and the Apple Watch app. The original layout is still one tap awa
 
 | Tab | What it does |
 |---|---|
-| **Chat** | One main chat. Side chats live under ☰. Your agent's status ("Browsing the web…") shows under its name, and tapping the mascot opens its profile. |
+| **Chat** | One main chat. Side chats live under ☰. Your agent's status ("Browsing the web…") shows under its name. Tap the mascot for its profile: what it did, what it may do without asking, what's coming up, and what it remembers. |
 | **Library** | Files your agent keeps in its workspace. |
 | **Ideas** | Things your agent proposes to take off your plate, plus ideas to try. Tap one to start it in chat, or ask for more. |
 | **Goals** | Goals your agent is working on, with progress and pause or resume. Below them: goals it proposes, a field to start your own, and the automations it's tracking. |
