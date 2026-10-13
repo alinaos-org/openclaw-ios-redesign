@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ChatCompletedWorkDisclosure<Content: View>: View {
+    // SIMPLE-UI: hosts with tool cards get a step summary (ChatToolCard.swift).
+    @Environment(\.openClawToolCardStyle) private var toolCardStyle
     let work: ChatTranscriptRow.CompletedWork
     @ViewBuilder let messageContent: (OpenClawChatMessage) -> Content
     // periphery:ignore - Read and written through $isExpanded; Xcode 27 omits the projected-binding reference.
@@ -29,6 +31,9 @@ struct ChatCompletedWorkDisclosure<Content: View>: View {
     }
 
     private var label: String {
+        if self.toolCardStyle != nil, let summary = OpenClawChatToolCardStyle.completedWorkSummary(self.work) {
+            return summary
+        }
         guard let milliseconds = self.work.durationMilliseconds else { return String(localized: "Worked") }
         let duration = ChatWorkingDurationFormatter.compact(milliseconds: milliseconds)
         return String(format: String(localized: "Worked for %@"), duration)

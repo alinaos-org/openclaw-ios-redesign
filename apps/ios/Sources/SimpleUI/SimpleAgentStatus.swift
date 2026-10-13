@@ -79,11 +79,34 @@ struct SimpleAgentStatus: Equatable {
         return .idle
     }
 
-    /// Friendly verb for a tool call. Gateway tool names are developer-facing
-    /// (`web_fetch`, `exec`, `sessions_spawn`); the header speaks in outcomes.
+    /// Friendly verb for a running tool call, for the header's status line.
+    static func toolPhrase(rawName: String, displayName: String) -> String {
+        SimpleToolVocabulary.title(rawName: rawName, displayName: displayName, isRunning: true)
+    }
+}
+
+/// Plain-language names for tool calls, in progress ("Running a command…")
+/// and finished ("Ran a command"). Gateway tool names are developer-facing
+/// (`web_fetch`, `exec`, `sessions_spawn`); the simple layout speaks in outcomes.
+enum SimpleToolVocabulary {
+    struct Phrase: Equatable {
+        let running: String
+        let done: String
+    }
+
+    static func title(rawName: String, displayName: String, isRunning: Bool) -> String {
+        if let phrase = self.phrase(rawName: rawName, displayName: displayName) {
+            return isRunning ? phrase.running : phrase.done
+        }
+        let readable = displayName.replacingOccurrences(of: "_", with: " ")
+        return isRunning
+            ? String(format: String(localized: "Using %@…"), readable)
+            : String(format: String(localized: "Used %@"), readable)
+    }
+
     /// Matching is per word, across both the raw and display names, so
     /// wrapper tools still resolve and "thread" never reads as "read".
-    static func toolPhrase(rawName: String, displayName: String) -> String {
+    static func phrase(rawName: String, displayName: String) -> Phrase? {
         let words = "\(rawName) \(displayName)"
             .lowercased()
             .split { !$0.isLetter && !$0.isNumber }
@@ -91,22 +114,25 @@ struct SimpleAgentStatus: Equatable {
         func has(_ prefixes: String...) -> Bool {
             words.contains { word in prefixes.contains { word.hasPrefix($0) } }
         }
-        if has("browser") { return String(localized: "Browsing the web…") }
-        if has("search") { return String(localized: "Searching…") }
-        if has("fetch") { return String(localized: "Reading a web page…") }
-        if has("calendar") { return String(localized: "Checking your calendar…") }
-        if has("reminder") { return String(localized: "Checking your reminders…") }
-        if has("contact") { return String(localized: "Looking up contacts…") }
-        if has("location") { return String(localized: "Checking your location…") }
-        if has("camera", "image", "photo", "screen") { return String(localized: "Looking at an image…") }
-        if has("memory") { return String(localized: "Updating memory…") }
-        if has("cron", "schedule") { return String(localized: "Scheduling…") }
-        if has("message", "send", "notify") { return String(localized: "Sending a message…") }
-        if has("spawn", "subagent") { return String(localized: "Asking a helper…") }
-        if has("read", "write", "edit", "patch", "file") { return String(localized: "Working on files…") }
-        if has("exec", "bash", "shell", "process", "command") { return String(localized: "Running a task…") }
-        let readable = displayName.replacingOccurrences(of: "_", with: " ")
-        return String(format: String(localized: "Using %@…"), readable)
+        func make(_ running: String.LocalizationValue, _ done: String.LocalizationValue) -> Phrase {
+            Phrase(running: String(localized: running), done: String(localized: done))
+        }
+        if has("browser") { return make("Browsing the web…", "Browsed the web") }
+        if has("search") { return make("Searching…", "Searched") }
+        if has("fetch") { return make("Reading a web page…", "Read a web page") }
+        if has("calendar") { return make("Checking your calendar…", "Checked your calendar") }
+        if has("reminder") { return make("Checking your reminders…", "Checked your reminders") }
+        if has("contact") { return make("Looking up contacts…", "Looked up contacts") }
+        if has("location") { return make("Checking your location…", "Checked your location") }
+        if has("camera", "image", "photo", "screen") { return make("Looking at an image…", "Looked at an image") }
+        if has("memory") { return make("Updating memory…", "Updated memory") }
+        if has("cron", "schedule") { return make("Scheduling…", "Scheduled a check-in") }
+        if has("message", "send", "notify") { return make("Sending a message…", "Sent a message") }
+        if has("spawn", "subagent") { return make("Asking a helper…", "Asked a helper") }
+        if has("write", "edit", "patch") { return make("Editing files…", "Edited files") }
+        if has("read", "file") { return make("Reading files…", "Read files") }
+        if has("exec", "bash", "shell", "process", "command") { return make("Running a command…", "Ran a command") }
+        return nil
     }
 }
 

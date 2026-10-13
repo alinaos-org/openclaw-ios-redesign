@@ -77,12 +77,19 @@ enum SimpleStarterPrompts {
 }
 
 extension OpenClawChatToolCardStyle {
-    /// Quiet card with a light-blue icon tile.
+    /// Quiet card with a light-blue icon tile, titled in plain language
+    /// ("Running a command…", "Ran a command").
     static var simpleLayout: OpenClawChatToolCardStyle {
         OpenClawChatToolCardStyle(
             surface: SimplePalette.fill,
             tile: SimplePalette.accentTint,
-            accent: SimplePalette.accent)
+            accent: SimplePalette.accent,
+            title: { context in
+                SimpleToolVocabulary.title(
+                    rawName: context.toolName,
+                    displayName: context.displayName,
+                    isRunning: context.isRunning)
+            })
     }
 }
 

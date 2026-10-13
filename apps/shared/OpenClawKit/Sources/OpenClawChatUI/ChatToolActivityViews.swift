@@ -243,14 +243,14 @@ private struct ChatToolActivityRowContent: View {
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
                 .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(self.display.title)
+                .accessibilityLabel(self.accessibleTitle)
                 .accessibilityValue(self.accessibilityValue)
                 .accessibilityHint(self.expanded ? "Collapse tool result" : "Expand tool result")
                 .accessibilityIdentifier("chat-tool-activity-\(self.item.id)")
             } else {
                 self.styledCollapsedRow
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(self.display.title)
+                    .accessibilityLabel(self.accessibleTitle)
                     .accessibilityValue(self.accessibilityValue)
             }
 
@@ -554,7 +554,7 @@ extension ChatToolActivityRowContent {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(self.item.activity?.preparedTitle ?? self.display.title)
+                Text(self.cardTitle(style))
                     .font(OpenClawChatTypography.body(size: 15, weight: .semibold, relativeTo: .subheadline))
                     .foregroundStyle(self.item.isError ? OpenClawChatTheme.danger : OpenClawChatTheme.assistantText)
                     .lineLimit(1)
@@ -572,6 +572,20 @@ extension ChatToolActivityRowContent {
             }
             self.cardStatus(style)
         }
+    }
+
+    /// SIMPLE-UI: cards read their plain-language title to VoiceOver as well.
+    private var accessibleTitle: String {
+        self.cardStyle.map(self.cardTitle) ?? self.display.title
+    }
+
+    /// The host's plain-language name when it offers one, else the gateway's.
+    private func cardTitle(_ style: OpenClawChatToolCardStyle) -> String {
+        let context = OpenClawChatToolCardTitleContext(
+            toolName: self.displayCall.name ?? self.item.name ?? "",
+            displayName: self.display.title,
+            isRunning: self.item.isPending)
+        return style.title?(context) ?? self.item.activity?.preparedTitle ?? self.display.title
     }
 
     /// What the call is doing, plus its outcome when that isn't simply "done".

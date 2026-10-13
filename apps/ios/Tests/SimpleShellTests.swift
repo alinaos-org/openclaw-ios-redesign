@@ -15,9 +15,10 @@ struct SimpleAgentStatusTests {
         ("cron", "Scheduling…"),
         ("message", "Sending a message…"),
         ("sessions_spawn", "Asking a helper…"),
-        ("read", "Working on files…"),
-        ("apply_patch", "Working on files…"),
-        ("exec", "Running a task…"),
+        ("read", "Reading files…"),
+        ("apply_patch", "Editing files…"),
+        ("write_file", "Editing files…"),
+        ("exec", "Running a command…"),
         ("thread_summary", "Using thread summary…"),
         ("agents_list", "Using agents list…"),
     ])
@@ -28,6 +29,21 @@ struct SimpleAgentStatusTests {
     @Test func `unknown tools fall back to a readable display name`() {
         #expect(SimpleAgentStatus
             .toolPhrase(rawName: "zz_custom_tool", displayName: "custom_tool") == "Using custom tool…")
+    }
+
+    @Test(arguments: [
+        ("exec", "Ran a command"),
+        ("web_fetch", "Read a web page"),
+        ("cron", "Scheduled a check-in"),
+        ("read", "Read files"),
+    ])
+    func `finished tool calls read in the past tense`(rawName: String, expected: String) {
+        #expect(SimpleToolVocabulary.title(rawName: rawName, displayName: rawName, isRunning: false) == expected)
+    }
+
+    @Test func `unknown finished tools fall back to a readable display name`() {
+        #expect(SimpleToolVocabulary.title(rawName: "zz_custom", displayName: "custom_tool", isRunning: false)
+            == "Used custom tool")
     }
 
     @Test func `only active phases count as working`() {

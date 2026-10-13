@@ -112,6 +112,12 @@ final class SimpleShellSnapshotUITests: XCTestCase {
 
     private func captureToolCards(appearance: String) {
         let app = self.launch(appearance: appearance, additionalArguments: ["--openclaw-step-labels-fixture"])
+        let summary = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH %@",
+            "Ran 3 steps"))
+            .firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 30), "Completed work should summarize its steps")
+        self.capture("simple-tool-summary-\(appearance)")
         self.expandCompletedWork(in: app)
         let card = self.toolRow(in: app)
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Tool cards are missing")
@@ -162,8 +168,10 @@ final class SimpleShellSnapshotUITests: XCTestCase {
 
     /// Finished turns fold their tool calls under "Worked for …"; open it.
     private func expandCompletedWork(in app: XCUIApplication) {
-        let worked = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
-        let workedText = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Worked")).firstMatch
+        // "Ran …" in the simple layout, upstream's "Worked …" in the classic one.
+        let label = NSPredicate(format: "label BEGINSWITH %@ OR label BEGINSWITH %@", "Worked", "Ran ")
+        let worked = app.buttons.matching(label).firstMatch
+        let workedText = app.staticTexts.matching(label).firstMatch
         if worked.waitForExistence(timeout: 30) {
             worked.tap()
         } else if workedText.exists {
@@ -175,12 +183,13 @@ final class SimpleShellSnapshotUITests: XCTestCase {
     }
 
     /// The fixture's first exec call, by identifier or (if a container's identifier
-    /// replaced it) by its "Exec" label.
+    /// replaced it) by its label: "Ran a command" as a card, "Exec" as a classic row.
     private func toolRow(in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier == %@ OR label BEGINSWITH %@",
+            format: "identifier == %@ OR label BEGINSWITH %@ OR label BEGINSWITH %@",
             "chat-tool-activity-fixture-exec",
-            "Exec")).firstMatch
+            "Exec",
+            "Ran a command")).firstMatch
     }
 
     @discardableResult
