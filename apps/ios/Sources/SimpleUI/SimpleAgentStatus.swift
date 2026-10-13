@@ -140,8 +140,14 @@ enum SimpleToolVocabulary {
 enum SimpleAgentIdentity {
     @MainActor
     static func displayName(appModel: NodeAppModel) -> String {
+        self.givenName(appModel: appModel) ?? appModel.chatAgentName
+    }
+
+    /// The name the agent was given on the gateway; nil when only its id is
+    /// known, so copy can say "your agent" instead of "Main".
+    @MainActor
+    static func givenName(appModel: NodeAppModel) -> String? {
         let agentID = appModel.chatAgentId.trimmedNonEmpty ?? "main"
-        let agent = appModel.gatewayAgents.first { $0.id == agentID }
-        return agent?.name?.trimmedNonEmpty ?? appModel.chatAgentName
+        return appModel.gatewayAgents.first { $0.id == agentID }?.name?.trimmedNonEmpty
     }
 }

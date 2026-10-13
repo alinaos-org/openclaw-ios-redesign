@@ -155,12 +155,10 @@ struct SimpleOnboardingReady: View {
     let step: OnboardingSuccessStep
 
     var body: some View {
-        let name = SimpleAgentIdentity.displayName(appModel: self.appModel)
-
         SimpleOnboardingPage(stage: .ready) {
             SimpleOnboardingHero(
                 mood: .celebrating,
-                title: Text("Say hi to \(name)"),
+                title: self.title,
                 subtitle: Text("Your agent is connected and ready to help."))
 
             HStack(spacing: 12) {
@@ -189,6 +187,13 @@ struct SimpleOnboardingReady: View {
                 Text("Start chatting")
             }
         }
+    }
+
+    private var title: Text {
+        if let name = SimpleAgentIdentity.givenName(appModel: self.appModel) {
+            return Text("Say hi to \(name)")
+        }
+        return Text("Say hi to your agent")
     }
 }
 

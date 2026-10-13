@@ -156,10 +156,16 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         XCTAssertTrue(connection.isHittable, "Connection row is missing from More")
         connection.tap()
 
+        // Settings builds its rows lazily, so the last one exists only once scrolled to.
+        self.settle()
         let reset = app.buttons["Reset Onboarding"]
-        XCTAssertTrue(reset.waitForExistence(timeout: 10), "Connection settings did not open")
-        for _ in 0..<10 where !reset.isHittable {
+        for _ in 0..<12 where !reset.isHittable {
             app.swipeUp()
+        }
+        guard reset.isHittable else {
+            self.capture("simple-reset-missing-light")
+            XCTFail("Reset Onboarding is missing from Connection settings")
+            return
         }
         reset.tap()
         let confirm = app.alerts["Reset Onboarding?"].buttons["Reset"]
