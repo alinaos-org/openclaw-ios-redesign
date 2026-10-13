@@ -507,7 +507,7 @@ private struct SimpleProfileMemoryTab: View {
     private static func view(for block: SimpleMemoryBlock) -> some View {
         switch block {
         case let .heading(text):
-            Text(Self.inline(text))
+            Text(Self.inline(text, base: OpenClawType.headline, strong: OpenClawType.headline))
                 .font(OpenClawType.headline)
                 .foregroundStyle(SimplePalette.ink)
                 .padding(.top, 6)
@@ -518,24 +518,36 @@ private struct SimpleProfileMemoryTab: View {
                     .font(OpenClawType.body)
                     .foregroundStyle(SimplePalette.tertiaryInk)
                     .accessibilityHidden(true)
-                Text(Self.inline(text))
+                Text(Self.inline(text, base: OpenClawType.body, strong: OpenClawType.headline))
                     .font(OpenClawType.body)
                     .foregroundStyle(SimplePalette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case let .paragraph(text):
-            Text(Self.inline(text))
+            Text(Self.inline(text, base: OpenClawType.body, strong: OpenClawType.headline))
                 .font(OpenClawType.body)
                 .foregroundStyle(SimplePalette.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    /// Bold, italics, code, and links inside a line.
-    private static func inline(_ text: String) -> AttributedString {
-        (try? AttributedString(
+    /// Bold, italics, code, and links inside a line, in the app's fonts.
+    /// Each run gets an explicit font: left to SwiftUI, emphasized runs fall
+    /// back to the system font at a different size.
+    private static func inline(_ text: String, base: Font, strong: Font) -> AttributedString {
+        guard var attributed = try? AttributedString(
             markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+        else { return AttributedString(text) }
+        for run in attributed.runs {
+            let intent = run.inlinePresentationIntent ?? []
+            var font = intent.contains(.stronglyEmphasized) ? strong : base
+            if intent.contains(.code) { font = OpenClawType.monoSmall }
+            if intent.contains(.emphasized) { font = font.italic() }
+            attributed[run.range].font = font
+            attributed[run.range].inlinePresentationIntent = nil
+        }
+        return attributed
     }
 }
 
