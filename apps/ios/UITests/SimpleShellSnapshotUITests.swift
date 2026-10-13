@@ -135,6 +135,9 @@ final class SimpleShellSnapshotUITests: XCTestCase {
 
         let done = app.buttons["simple-onboarding-done"]
         XCTAssertTrue(done.waitForExistence(timeout: 15), "Ready screen is missing")
+        let tour = app.descendants(matching: .any)["simple-onboarding-tour"]
+        XCTAssertTrue(tour.exists, "Ready screen should introduce the tabs")
+        XCTAssertLessThanOrEqual(tour.frame.maxY, done.frame.minY, "The tab tour should fit above Start chatting")
         self.settle()
         self.capture("simple-onboarding-ready-\(appearance)")
 

@@ -149,7 +149,8 @@ struct SimpleOnboardingConnect: View {
     }
 }
 
-/// Step 3: say hello to the agent once this iPhone is connected.
+/// Step 3: say hello to the agent once this iPhone is connected, with a short
+/// tour of the tabs it lands on.
 struct SimpleOnboardingReady: View {
     @Environment(NodeAppModel.self) private var appModel
     let step: OnboardingSuccessStep
@@ -182,6 +183,32 @@ struct SimpleOnboardingReady: View {
             .simpleOnboardingCard()
             .accessibilityElement(children: .combine)
             .padding(.top, 32)
+
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Where to start")
+                    .font(OpenClawType.footnoteSemiBold)
+                    .foregroundStyle(SimplePalette.secondaryInk)
+                    .accessibilityAddTraits(.isHeader)
+                SimpleOnboardingPoint(
+                    systemImage: SimpleTab.chat.systemImage,
+                    tint: SimplePalette.accent,
+                    title: Text("Chat"),
+                    detail: Text("Ask for anything. Type, or tap the mic and talk."))
+                SimpleOnboardingPoint(
+                    systemImage: SimpleTab.ideas.systemImage,
+                    tint: SimplePalette.Tint.orange,
+                    title: Text("Ideas"),
+                    detail: Text("Things your agent can take on for you. Tap one to start."))
+                SimpleOnboardingPoint(
+                    systemImage: SimpleTab.goals.systemImage,
+                    tint: SimplePalette.Tint.green,
+                    title: Text("Goals"),
+                    detail: Text("Routines and check-ins it keeps track of for you."))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 32)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("simple-onboarding-tour")
         } actions: {
             SimpleOnboardingPrimaryButton(identifier: "simple-onboarding-done", action: self.step.onGetStarted) {
                 Text("Start chatting")
