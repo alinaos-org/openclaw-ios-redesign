@@ -125,6 +125,7 @@ jobs:
             -only-testing:OpenClawTests/SimpleAgentStatusTests \
             -only-testing:OpenClawTests/SimpleCatalogTests \
             -only-testing:OpenClawTests/SimpleShellPreferenceTests \
+            -only-testing:OpenClawTests/SimpleConnectorsTests \
             -only-testing:OpenClawTests/OpenClawTypographyTests \
             test-without-building
 

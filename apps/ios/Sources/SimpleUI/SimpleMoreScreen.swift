@@ -25,12 +25,14 @@ struct SimpleMoreScreen: View {
     }
 
     let open: (Destination) -> Void
+    let openConnectors: () -> Void
     let useClassicInterface: () -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 SimpleLargeTitle("More")
+                self.connectorsCard
                 ForEach(Self.groups) { group in
                     Text(group.title)
                         .font(OpenClawType.footnoteSemiBold)
@@ -79,6 +81,45 @@ struct SimpleMoreScreen: View {
         }
         .scrollIndicators(.hidden)
         .simpleCanvas()
+    }
+
+    /// What the agent can reach (iPhone features, messaging apps, skills),
+    /// first because it's where most setup questions start.
+    private var connectorsCard: some View {
+        Button(action: self.openConnectors) {
+            HStack(spacing: 14) {
+                SimpleIconTile(
+                    systemImage: "point.3.connected.trianglepath.dotted",
+                    tint: SimplePalette.accent,
+                    size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connectors")
+                        .font(OpenClawType.headline)
+                        .foregroundStyle(SimplePalette.ink)
+                    Text("iPhone features, messaging apps, and skills your agent can use")
+                        .font(OpenClawType.footnote)
+                        .foregroundStyle(SimplePalette.secondaryInk)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(SimplePalette.tertiaryInk)
+                    .accessibilityHidden(true)
+            }
+            .padding(16)
+            .accessibilityElement(children: .combine)
+        }
+        .buttonStyle(SimpleRowButtonStyle())
+        .background(SimplePalette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: SimpleMetric.rowRadius, style: .continuous)
+                .stroke(SimplePalette.hairline, lineWidth: 0.5)
+        }
+        .padding(.horizontal, SimpleMetric.gutter)
+        .padding(.top, 8)
+        .accessibilityIdentifier("Simple.More.Connectors")
     }
 
     static var groups: [ItemGroup] {

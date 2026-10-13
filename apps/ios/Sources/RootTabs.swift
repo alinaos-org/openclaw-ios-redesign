@@ -128,6 +128,7 @@ struct RootTabs: View {
         case simpleDestination(SidebarDestination)
         case simpleChats
         case simpleProfile
+        case simpleConnectors
 
         var id: String {
             switch self {
@@ -138,6 +139,7 @@ struct RootTabs: View {
             case let .simpleDestination(destination): "simple-destination:\(destination.rawValue)"
             case .simpleChats: "simple-chats"
             case .simpleProfile: "simple-profile"
+            case .simpleConnectors: "simple-connectors"
             }
         }
     }
@@ -716,7 +718,7 @@ struct RootTabs: View {
                     NavigationStack {
                         SessionDashboardScreen(sessionKey: sessionKey, agentId: agentId)
                     }
-                case .simpleDestination, .simpleChats, .simpleProfile:
+                case .simpleDestination, .simpleChats, .simpleProfile, .simpleConnectors:
                     self.simpleSheetContent(sheet)
                 }
             }
@@ -1037,7 +1039,7 @@ extension RootTabs {
 
     private var isSimpleSheetPresented: Bool {
         switch self.presentedSheet {
-        case .some(.simpleDestination), .some(.simpleChats), .some(.simpleProfile): true
+        case .some(.simpleDestination), .some(.simpleChats), .some(.simpleProfile), .some(.simpleConnectors): true
         default: false
         }
     }
@@ -1066,6 +1068,7 @@ extension RootTabs {
             openDestination: { self.selectSidebarDestination($0) },
             openChats: { self.presentedSheet = .simpleChats },
             openProfile: { self.presentedSheet = .simpleProfile },
+            openConnectors: { self.presentedSheet = .simpleConnectors },
             useClassicInterface: {
                 self.presentedSheet = nil
                 self.simpleShellEnabled = false
@@ -1116,6 +1119,8 @@ extension RootTabs {
                 self.simpleChatsSheet
             case .simpleProfile:
                 self.simpleProfileSheet
+            case .simpleConnectors:
+                SimpleConnectorsSheet()
             default:
                 EmptyView()
             }

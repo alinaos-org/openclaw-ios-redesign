@@ -47,7 +47,7 @@ power-user screen one tap away under **More**.
 | More | Every classic destination | Tab 5: a grouped list that opens each one as a sheet |
 | Approvals | `ExecApprovalPromptDialog` | Phase 2: restyle as the Deny/Allow card |
 | Profile sheet | Activity dashboard, approvals settings, cron, workspace memory files | Phase 1 has simple rows. Phase 2 adds segments. |
-| Connectors | Skills + channels settings (dashboard) | Phase 3: a native Connectors sheet |
+| Connectors | Device permissions, channels, and skills, each only on the dashboard (admin phones) | Phase 3: a native Connectors sheet from More. It covers iPhone features with one-tap turn-on, messaging apps (`channels.status`), and skills (`skills.status`); both calls need only operator.read |
 
 ## Architecture: keep the fork rebasable
 
@@ -75,7 +75,10 @@ Upstream's iOS app gets more than 40 PRs a week. To keep conflicts small:
   status and an "Open" button, typing dots, the Deny/Allow approval card, artifact cards.
 - **Phase 3: onboarding.** A friendly 3-step first run (meet your agent →
   connect your computer by QR → say hi to your agent by name) in front of the
-  existing wizard, plus a native Connectors sheet over skills and channels.
+  existing wizard, plus a native Connectors sheet over iPhone features,
+  messaging apps, and skills. Connectors turns iPhone features on through the
+  same owners as the device settings page; messaging apps and skills are set
+  up on the computer, so it reports their status and what's missing.
   The simple screens replace only the wizard's full-screen steps and call its
   actions; setup codes, manual addresses, pairing approval, and recovery stay
   on the wizard's own screens. Naming the agent from the phone is deferred:

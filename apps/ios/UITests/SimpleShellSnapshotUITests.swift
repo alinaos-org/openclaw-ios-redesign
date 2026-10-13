@@ -181,6 +181,45 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-onboarding-after-reset-light")
     }
 
+    func testSimpleConnectorsLight() {
+        self.captureConnectors(appearance: "light")
+    }
+
+    func testSimpleConnectorsDark() {
+        self.captureConnectors(appearance: "dark")
+    }
+
+    /// More → Connectors with the demo gateway's messaging apps and skills.
+    private func captureConnectors(appearance: String) {
+        let app = self.launch(appearance: appearance)
+        app.buttons["Simple.Tab.more"].tap()
+        let entry = app.buttons["Simple.More.Connectors"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Connectors entry is missing from More")
+        XCTAssertTrue(
+            self.tap(entry, until: app.descendants(matching: .any)["simple-connectors-phone"]),
+            "Connectors sheet did not open")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["simple-connector-phone-calendar"].waitForExistence(timeout: 5),
+            "iPhone features are missing")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["simple-connector-app-telegram"].waitForExistence(timeout: 10),
+            "Messaging apps are missing")
+        self.settle()
+        self.capture("simple-connectors-\(appearance)")
+
+        let skills = app.descendants(matching: .any)["simple-connector-skill-weather"]
+        for _ in 0..<4 where !skills.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(skills.isHittable, "Skills are missing")
+        let setup = app.buttons["simple-connectors-skills-setup"]
+        if setup.isHittable {
+            setup.tap()
+        }
+        self.settle()
+        self.capture("simple-connectors-skills-\(appearance)")
+    }
+
     func testSimpleToolCardsLight() {
         self.captureToolCards(appearance: "light")
     }

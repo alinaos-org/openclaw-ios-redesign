@@ -1,4 +1,6 @@
+import CoreLocation
 import Foundation
+import OpenClawKit
 import Testing
 @testable import OpenClaw
 
@@ -105,5 +107,123 @@ struct SimpleShellPreferenceTests {
         // The unit-test host launches without UI-test flags, so the stored
         // preference decides and no override is forced.
         #expect(SimpleShellPreference.launchOverride == nil)
+    }
+}
+
+@MainActor
+struct SimpleConnectorsTests {
+    private static let allGranted: [DeviceSettingsPermission: DeviceSettingsPermissionStatus] = Dictionary(
+        uniqueKeysWithValues: SimplePhoneFeature.Kind.allCases.map { ($0.permission, .granted) })
+
+    private func state(
+        _ kind: SimplePhoneFeature.Kind,
+        statuses: [DeviceSettingsPermission: DeviceSettingsPermissionStatus] = SimpleConnectorsTests.allGranted,
+        cameraEnabled: Bool = true,
+        locationMode: OpenClawLocationMode = .whileUsing,
+        locationAuthorization: CLAuthorizationStatus = .authorizedWhenInUse) -> SimplePhoneFeature.State?
+    {
+        SimplePhoneFeature.features(
+            statuses: statuses,
+            cameraEnabled: cameraEnabled,
+            locationMode: locationMode,
+            locationAuthorization: locationAuthorization)
+            .first { $0.kind == kind }?.state
+    }
+
+    @Test func `iPhone features follow iOS permission status`() {
+        var statuses = Self.allGranted
+        statuses[.contacts] = .notDetermined
+        statuses[.photos] = .denied
+        statuses[.calendars] = .limited
+        statuses[.camera] = .limited
+        #expect(self.state(.contacts, statuses: statuses) == .askable)
+        #expect(self.state(.photos, statuses: statuses) == .blocked(detail: "Off in iPhone Settings"))
+        // "Add Events Only" can't read the calendar, so it isn't on for the agent.
+        #expect(self.state(.calendar, statuses: statuses) == .blocked(detail: "Can add but not see"))
+        #expect(self.state(.camera, statuses: statuses) == .on(detail: "Limited access"))
+        #expect(self.state(.reminders, statuses: statuses) == .on(detail: nil))
+    }
+
+    @Test func `camera and location also need the OpenClaw switch`() {
+        #expect(self.state(.camera, cameraEnabled: false) == .offInApp)
+        #expect(self.state(.location, locationMode: .off) == .offInApp)
+        #expect(self.state(.location, locationMode: .whileUsing) == .on(detail: "While using the app"))
+        #expect(
+            self.state(.location, locationMode: .always, locationAuthorization: .authorizedAlways)
+                == .on(detail: "Always"))
+        // Always mode with only While Using permission works in the foreground only.
+        #expect(self.state(.location, locationMode: .always) == .on(detail: "While using the app"))
+    }
+
+    @Test func `messaging apps report status with set-up apps first`() throws {
+        let json = """
+        {
+          "ts": 1,
+          "channelOrder": ["discord", "telegram", "whatsapp", "slack", "signal", "matrix", "line"],
+          "channelLabels": {"discord": "Discord", "telegram": "Telegram", "whatsapp": "WhatsApp",
+                            "slack": "Slack", "signal": "Signal", "matrix": "Matrix", "line": "LINE"},
+          "channelSystemImages": {"telegram": "paperplane"},
+          "channels": {},
+          "channelAccounts": {
+            "telegram": [{"accountId": "default", "configured": true, "running": true}],
+            "whatsapp": [{"accountId": "default", "configured": true, "connected": true}],
+            "slack": [{"accountId": "default", "configured": true, "running": false}],
+            "signal": [{"accountId": "default", "configured": true, "running": false, "lastError": "Daemon exited"}],
+            "matrix": [{"accountId": "old", "enabled": false, "configured": true, "connected": true}],
+            "line": [{"accountId": "default", "configured": true, "running": true, "connected": false}]
+          },
+          "channelDefaultAccountId": {},
+          "statusIssues": [{"channel": "whatsapp", "accountId": "default", "kind": "auth",
+                            "message": "Scan the QR code again."}]
+        }
+        """
+        let status = try JSONDecoder().decode(SimpleChannelsStatusLite.self, from: Data(json.utf8))
+        let apps = SimpleMessagingApp.apps(from: status)
+        #expect(apps.map(\.id) == ["telegram", "whatsapp", "slack", "signal", "matrix", "line", "discord"])
+        let states = Dictionary(uniqueKeysWithValues: apps.map { ($0.id, $0.state) })
+        #expect(states["telegram"] == .connected)
+        #expect(states["whatsapp"] == .attention("Scan the QR code again."))
+        #expect(states["slack"] == .off)
+        #expect(states["signal"] == .attention("Daemon exited"))
+        // A disabled account doesn't count as connected.
+        #expect(states["matrix"] == .off)
+        #expect(states["line"] == .attention("Reconnecting…"))
+        #expect(states["discord"] == .notSetUp)
+        #expect(apps.first?.systemImage == "paperplane")
+    }
+
+    @Test func `skills split into ready and needing setup`() throws {
+        func skill(
+            _ name: String,
+            eligible: Bool,
+            disabled: Bool = false,
+            bins: [String] = [],
+            env: [String] = []) -> String
+        {
+            let missing = "{\"bins\": \(bins), \"env\": \(env), \"config\": []}"
+            return """
+            {"name": "\(name)", "description": "About \(name)", "source": "bundled", "filePath": "/s",
+             "baseDir": "/s", "skillKey": "\(name)", "always": false, "disabled": \(disabled),
+             "eligible": \(eligible), "requirements": \(missing), "missing": \(missing),
+             "configChecks": [], "install": []}
+            """
+        }
+        let json = """
+        {"workspaceDir": "/w", "managedSkillsDir": "/m", "skills": [
+          \(skill("weather", eligible: true)),
+          \(skill("github", eligible: false, bins: ["gh"])),
+          \(skill("spotify-player", eligible: false, env: ["SPOTIFY_CLIENT_ID"])),
+          \(skill("apple-notes", eligible: true)),
+          \(skill("legacy", eligible: true, disabled: true))
+        ]}
+        """
+        let report = try JSONDecoder().decode(SkillsStatusReport.self, from: Data(json.utf8))
+        let skills = SimpleSkill.skills(from: report)
+        #expect(skills.map(\.name) == ["Apple Notes", "Github", "Spotify Player", "Weather"])
+        let states = Dictionary(uniqueKeysWithValues: skills.map { ($0.id, $0.state) })
+        #expect(states["weather"] == .ready)
+        #expect(states["github"] == .needsSetup("Needs gh installed on your computer"))
+        #expect(states["spotify-player"] == .needsSetup("Needs SPOTIFY_CLIENT_ID set on your computer"))
+        #expect(states["legacy"] == nil)
     }
 }

@@ -19,6 +19,7 @@ struct SimpleShell: View {
     let openDestination: (Destination) -> Void
     let openChats: () -> Void
     let openProfile: () -> Void
+    let openConnectors: () -> Void
     let useClassicInterface: () -> Void
 
     @State private var mountedTabs: Set<SimpleTab> = [.chat]
@@ -113,6 +114,7 @@ struct SimpleShell: View {
                 self.withTopBar {
                     SimpleMoreScreen(
                         open: self.openDestination,
+                        openConnectors: self.openConnectors,
                         useClassicInterface: self.useClassicInterface)
                 }
             }
