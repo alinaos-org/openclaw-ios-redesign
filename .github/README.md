@@ -27,7 +27,7 @@ back, tap **✨** in the classic sidebar's footer.
 - [x] Single-row composer, blue accents, and model sign-in only when it's needed
 - [x] Four-item chat menu; model and session options moved to a Model & thinking sheet
 - [x] Deny/Allow approval card
-- [ ] Tool cards
+- [x] Tool activity cards
 - [ ] Friendlier onboarding and a native connectors screen
 - [ ] Ideas and goals proposed by your agent
 
