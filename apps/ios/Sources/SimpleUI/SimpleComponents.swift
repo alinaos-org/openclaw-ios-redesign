@@ -125,10 +125,12 @@ struct SimpleTopBar<Leading: View, Trailing: View>: View {
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
         .background(alignment: .top) {
+            // Solid behind the name tag, so scrolled content never shows
+            // through it; only the last stretch fades into the page.
             LinearGradient(
                 stops: [
                     .init(color: SimplePalette.canvas, location: 0),
-                    .init(color: SimplePalette.canvas, location: 0.7),
+                    .init(color: SimplePalette.canvas, location: 0.85),
                     .init(color: SimplePalette.canvas.opacity(0), location: 1),
                 ],
                 startPoint: .top,
