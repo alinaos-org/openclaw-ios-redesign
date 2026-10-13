@@ -220,6 +220,64 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.capture("simple-connectors-skills-\(appearance)")
     }
 
+    func testSimpleProposalsLight() {
+        self.captureProposals(appearance: "light")
+    }
+
+    func testSimpleProposalsDark() {
+        self.captureProposals(appearance: "dark")
+    }
+
+    /// Ideas and Goals with the demo agent's proposals and goals.
+    private func captureProposals(appearance: String) {
+        let app = self.launch(appearance: appearance)
+        app.buttons["Simple.Tab.ideas"].tap()
+        let idea = app.descendants(matching: .any)["Simple.Proposal.sample-school-emails"]
+        XCTAssertTrue(idea.waitForExistence(timeout: 10), "Proposed ideas are missing")
+        self.settle()
+        self.capture("simple-ideas-proposals-\(appearance)")
+
+        app.buttons["Simple.Proposal.Dismiss.sample-school-emails"].tap()
+        XCTAssertTrue(idea.waitForNonExistence(timeout: 5), "Not now should clear the card")
+
+        app.buttons["Simple.Tab.goals"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Simple.WorkingGoal.sample-goal-lisbon"].waitForExistence(timeout: 10),
+            "Goals in progress are missing")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Simple.Proposal.sample-goal-10k"].waitForExistence(timeout: 5),
+            "Proposed goals are missing")
+        self.settle()
+        self.capture("simple-goals-proposals-\(appearance)")
+    }
+
+    func testStartingAGoalAddsItToWorkingOn() {
+        let app = self.launch(appearance: "light")
+        app.buttons["Simple.Tab.goals"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Simple.WorkingGoal.sample-goal-lisbon"].waitForExistence(timeout: 10),
+            "Goals tab did not load")
+        // The field sits below the fold in a lazy stack: it exists only once scrolled to.
+        let field = app.descendants(matching: .any)["Simple.StartGoal.Field"].firstMatch
+        for _ in 0..<6 where !(field.exists && field.isHittable) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(field.isHittable, "Start a goal field is missing")
+        field.tap()
+        field.typeText("Learn to bake sourdough")
+        app.buttons["Simple.StartGoal.Start"].tap()
+        // New goals go to the top of Working on.
+        for _ in 0..<6 {
+            app.swipeDown()
+        }
+        let started = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@",
+            "Learn to bake sourdough")).firstMatch
+        XCTAssertTrue(started.waitForExistence(timeout: 5), "A started goal should appear under Working on")
+        self.settle()
+        self.capture("simple-goals-started-light")
+    }
+
     func testSimpleToolCardsLight() {
         self.captureToolCards(appearance: "light")
     }

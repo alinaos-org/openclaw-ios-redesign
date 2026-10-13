@@ -186,9 +186,22 @@ struct SimpleIconTile: View {
 
 /// Section header with a haloed status dot ("● Tracking").
 struct SimpleDotSectionHeader: View {
-    let title: LocalizedStringKey
+    let title: Text
     let tint: Color
     let halo: Color
+
+    init(title: LocalizedStringKey, tint: Color, halo: Color) {
+        self.title = Text(title)
+        self.tint = tint
+        self.halo = halo
+    }
+
+    /// For titles built at runtime, such as ones with the agent's name.
+    init(verbatim title: String, tint: Color, halo: Color) {
+        self.title = Text(verbatim: title)
+        self.tint = tint
+        self.halo = halo
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -198,7 +211,7 @@ struct SimpleDotSectionHeader: View {
                 .padding(5)
                 .background(Circle().fill(self.halo))
                 .accessibilityHidden(true)
-            Text(self.title)
+            self.title
                 .font(OpenClawType.headline)
                 .foregroundStyle(self.tint)
         }

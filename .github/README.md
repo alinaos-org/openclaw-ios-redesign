@@ -14,8 +14,8 @@ notifications, and the Apple Watch app. The original layout is still one tap awa
 |---|---|
 | **Chat** | One main chat. Side chats live under ☰. Your agent's status ("Browsing the web…") shows under its name, and tapping the mascot opens its profile. |
 | **Library** | Files your agent keeps in its workspace. |
-| **Ideas** | Things your agent can take on for you. Tap one to start. |
-| **Goals** | Your automations, shown as goals it's tracking, plus templates for new ones. |
+| **Ideas** | Things your agent proposes to take off your plate, plus ideas to try. Tap one to start it in chat, or ask for more. |
+| **Goals** | Goals your agent is working on, with progress and pause or resume. Below them: goals it proposes, a field to start your own, and the automations it's tracking. |
 | **More** | **Connectors** (what your agent can reach: iPhone features you can turn on, messaging apps, and skills), plus every screen from the original app: agents, all chats, activity, automations, skills, devices, usage, connection, and settings. |
 
 To switch to the original layout, go to **More → Use classic interface**. To come
@@ -30,7 +30,7 @@ back, tap **✨** in the classic sidebar's footer.
 - [x] Tool activity cards, named in plain language ("Ran a command", "Ran 3 steps")
 - [x] Friendlier first run: meet your agent, connect your computer, say hi
 - [x] Connectors: iPhone features, messaging apps, and skills in one place
-- [ ] Ideas and goals proposed by your agent
+- [x] Ideas and goals proposed by your agent, and goals it works on with progress
 
 The design and plan are in [`apps/ios/SIMPLE_UI.md`](/apps/ios/SIMPLE_UI.md).
 

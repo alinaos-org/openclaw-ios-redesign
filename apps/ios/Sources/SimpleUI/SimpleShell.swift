@@ -24,6 +24,7 @@ struct SimpleShell: View {
 
     @State private var mountedTabs: Set<SimpleTab> = [.chat]
     @State private var isKeyboardVisible = false
+    @State private var proposals = SimpleProposalsModel()
 
     /// Shorter keyboard frames are the iPad shortcut bar over a hardware keyboard.
     private static let softwareKeyboardMinimumHeight: CGFloat = 120
@@ -60,6 +61,20 @@ struct SimpleShell: View {
         #endif
         .onChange(of: self.selectedTab, initial: true) { _, tab in
             self.mountedTabs.insert(tab)
+            if tab == .ideas || tab == .goals {
+                Task { await self.proposals.refresh(appModel: self.appModel) }
+            }
+        }
+        .onChange(of: self.appModel.isOperatorGatewayConnected) { _, _ in
+            Task { await self.proposals.refresh(appModel: self.appModel) }
+        }
+        .alert(Text("Something went wrong"), isPresented: self.showsProposalError) {
+            Button(role: .cancel) {} label: {
+                Text("OK").font(OpenClawType.subheadSemiBold)
+            }
+        } message: {
+            Text(verbatim: self.proposals.errorMessage ?? "")
+                .font(OpenClawType.subhead)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
@@ -69,6 +84,13 @@ struct SimpleShell: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.snappy(duration: 0.2)) { self.isKeyboardVisible = false }
         }
+    }
+
+    /// A failed goal start or update, shown once and then cleared.
+    private var showsProposalError: Binding<Bool> {
+        Binding(
+            get: { self.proposals.errorMessage != nil },
+            set: { if !$0 { self.proposals.clearError() } })
     }
 
     // MARK: Tabs
@@ -98,8 +120,16 @@ struct SimpleShell: View {
         case .ideas:
             NavigationStack {
                 self.withTopBar {
-                    SimpleIdeasScreen(ideas: SimpleIdeaCatalog.starter) { idea in
+                    SimpleIdeasScreen(
+                        ideas: SimpleIdeaCatalog.starter,
+                        proposals: self.proposals,
+                        agentName: SimpleAgentIdentity.givenName(appModel: self.appModel),
+                        actions: self.proposalActions)
+                    { idea in
                         self.startInChat(idea.prompt)
+                    }
+                    .refreshable {
+                        await self.proposals.refresh(appModel: self.appModel)
                     }
                 }
             }
@@ -124,10 +154,14 @@ struct SimpleShell: View {
     private var goalsScreen: some View {
         SimpleGoalsScreen(
             jobs: self.sidebarModel.cronJobs,
+            proposals: self.proposals,
+            agentName: SimpleAgentIdentity.givenName(appModel: self.appModel),
+            actions: self.proposalActions,
             onOpenJob: { _ in self.openDestination(.cron) },
             onCreate: { template in self.startInChat(template.prompt) })
             .refreshable {
                 await self.sidebarModel.refresh(appModel: self.appModel)
+                await self.proposals.refresh(appModel: self.appModel)
             }
     }
 
@@ -210,20 +244,75 @@ struct SimpleShell: View {
 
     // MARK: Actions
 
-    /// Starts an idea or goal in the current chat. A draft the user already
-    /// typed is never lost: the prompt is appended below it and left in the
-    /// composer for review instead of being sent. Uses the same composer
-    /// resolver as the built-in starter prompts, so a detached or stale chat
-    /// model is never written to.
-    private func startInChat(_ prompt: String) {
+    private var proposalActions: SimpleProposalActions {
+        SimpleProposalActions(
+            start: { proposal in
+                if proposal.isGoal {
+                    Task { await self.startGoal(proposal.prompt, from: proposal) }
+                } else if self.startInChat(proposal.prompt) {
+                    // Only a sent idea is done; one left in the composer keeps its card.
+                    self.proposals.dismiss(proposal)
+                }
+            },
+            dismiss: { proposal in
+                self.proposals.dismiss(proposal)
+            },
+            ask: { kind in
+                _ = self.startInChat(SimpleProposalPrompts.ask(kind))
+            },
+            startGoal: { objective in
+                await self.startGoal(objective, from: nil)
+            },
+            openGoal: { goal in
+                // Sample goals (screenshot and demo modes) have no chat of their own.
+                guard !goal.sessionKey.isEmpty, !self.proposals.usesSampleData else {
+                    self.selectedTab = .chat
+                    return
+                }
+                self.appModel.openChat(sessionKey: goal.sessionKey)
+            },
+            updateGoal: { goal, action in
+                Task { await self.proposals.update(goal, action, appModel: self.appModel) }
+            })
+    }
+
+    /// Starts a goal in its own new chat and opens that chat. Returns whether
+    /// it started.
+    @discardableResult
+    private func startGoal(_ objective: String, from proposal: SimpleProposal?) async -> Bool {
+        guard let sessionKey = await self.proposals.startGoal(
+            objective: objective,
+            from: proposal,
+            appModel: self.appModel)
+        else { return false }
+        if !sessionKey.isEmpty {
+            self.appModel.openChat(sessionKey: sessionKey)
+        }
+        return true
+    }
+
+    /// Starts an idea, a planning template, or a request for proposals in the
+    /// current chat, or the main chat when the current one holds a goal. A
+    /// draft the user already typed is never lost: the prompt is appended
+    /// below it and left in the composer for review instead of being sent.
+    /// Uses the same composer resolver as the built-in starter prompts, so a
+    /// detached or stale chat model is never written to. Returns whether the
+    /// prompt was sent; it stays in the composer while a reply is still running.
+    @discardableResult
+    private func startInChat(_ prompt: String) -> Bool {
         self.selectedTab = .chat
-        guard let viewModel = self.appModel.chatPresentation.composerModelResolver()() else { return }
+        let currentKey = self.appModel.chatSessionKey
+        if self.proposals.goals.contains(where: { !$0.sessionKey.isEmpty && $0.sessionKey == currentKey }) {
+            self.appModel.openChat(sessionKey: nil)
+            self.appModel.chatPresentation.sync(appModel: self.appModel)
+        }
+        guard let viewModel = self.appModel.chatPresentation.composerModelResolver()() else { return false }
         let draft = viewModel.input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard draft.isEmpty else {
             viewModel.input = draft + "\n\n" + prompt
-            return
+            return false
         }
         viewModel.input = prompt
-        viewModel.send()
+        return viewModel.send() != nil
     }
 }

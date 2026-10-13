@@ -2,9 +2,10 @@ import OpenClawKit
 import OpenClawProtocol
 import SwiftUI
 
-// SIMPLE-UI: "Goals" — what your agent is keeping an eye on. Phase 1 presents the
-// gateway's automations (cron jobs) as tracked items and offers goal
-// templates that start a planning conversation in chat.
+// SIMPLE-UI: "Goals" — what your agent is working toward and keeping an eye on:
+// the gateway's session goals ("Working on", with status and the latest note),
+// goals it proposes, a field to start your own, its automations (cron jobs)
+// as tracked check-ins, and templates that start a planning chat.
 
 struct SimpleGoalTemplate: Identifiable, Hashable {
     let id: String
@@ -43,6 +44,9 @@ struct SimpleGoalTemplate: Identifiable, Hashable {
 
 struct SimpleGoalsScreen: View {
     let jobs: [CronJob]
+    let proposals: SimpleProposalsModel
+    let agentName: String?
+    let actions: SimpleProposalActions
     let onOpenJob: (CronJob) -> Void
     let onCreate: (SimpleGoalTemplate) -> Void
 
@@ -55,22 +59,30 @@ struct SimpleGoalsScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 SimpleLargeTitle("Goals")
-                if self.jobs.isEmpty {
-                    self.emptyState
-                } else {
-                    self.section(
-                        title: "Tracking",
-                        tint: SimplePalette.tracking,
-                        halo: SimplePalette.trackingHalo,
-                        jobs: self.trackingJobs,
-                        expanded: self.$showsAllTracking)
-                    self.section(
-                        title: "Paused",
-                        tint: SimplePalette.paused,
-                        halo: SimplePalette.pausedHalo,
-                        jobs: self.pausedJobs,
-                        expanded: self.$showsAllPaused)
-                }
+                self.workingOnSection
+                SimpleProposalsSection(
+                    kind: .goals,
+                    model: self.proposals,
+                    agentName: self.agentName,
+                    actions: self.actions)
+                    .padding(.bottom, 18)
+                SimpleStartGoalCard(
+                    agentName: self.agentName,
+                    isStarting: self.proposals.busyIDs.contains("new-goal"),
+                    onStart: self.actions.startGoal)
+                    .padding(.bottom, 18)
+                self.section(
+                    title: "Tracking",
+                    tint: SimplePalette.tracking,
+                    halo: SimplePalette.trackingHalo,
+                    jobs: self.trackingJobs,
+                    expanded: self.$showsAllTracking)
+                self.section(
+                    title: "Paused",
+                    tint: SimplePalette.paused,
+                    halo: SimplePalette.pausedHalo,
+                    jobs: self.pausedJobs,
+                    expanded: self.$showsAllPaused)
                 self.createSection
             }
             .padding(.bottom, SimpleMetric.scrollBottomPadding)
@@ -135,23 +147,29 @@ struct SimpleGoalsScreen: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Nothing tracked yet")
-                .font(OpenClawType.headline)
-                .foregroundStyle(SimplePalette.ink)
-            Text("Pick an area below and I'll help you turn it into a plan with regular check-ins.")
-                .font(OpenClawType.subhead)
-                .foregroundStyle(SimplePalette.secondaryInk)
-                .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder
+    private var workingOnSection: some View {
+        if !self.proposals.goals.isEmpty {
+            SimpleDotSectionHeader(
+                title: "Working on",
+                tint: SimplePalette.accent,
+                halo: SimplePalette.accentTint)
+            ForEach(self.proposals.goals) { goal in
+                SimpleSessionGoalRow(
+                    goal: goal,
+                    isBusy: self.proposals.busyIDs.contains(goal.id),
+                    onOpen: { self.actions.openGoal(goal) },
+                    onAction: { self.actions.updateGoal(goal, $0) })
+            }
+            SimpleRowDivider(leadingInset: 0)
+                .padding(.top, 8)
+                .padding(.bottom, 18)
         }
-        .padding(.horizontal, SimpleMetric.gutter + 4)
-        .padding(.vertical, 12)
     }
 
     private var createSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Create a goal")
+            Text("Plan something in chat")
                 .font(OpenClawType.headline)
                 .foregroundStyle(SimplePalette.ink)
                 .padding(.horizontal, SimpleMetric.gutter + 4)

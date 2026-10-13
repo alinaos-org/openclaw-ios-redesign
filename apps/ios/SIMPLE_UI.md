@@ -42,8 +42,8 @@ power-user screen one tap away under **More**.
 | Status line | `pendingRunCount`, `pendingToolCalls`, `streamingAssistantText`, talk mode | `SimpleAgentStatus` turns these into friendly phrases plus a mascot mood |
 | Avatar | `OpenClawMascotView` (animated lobster with moods) | The header avatar; its mood follows agent state |
 | Library | Agent workspace files (`AgentWorkspaceDirectoryList`) | Tab 2 |
-| Ideas | Nothing yet | Tab 3. Phase 1 uses curated "I can…" ideas that start a chat. Later, the agent generates them through heartbeat or cron. |
-| Goals | Cron jobs (`RootSidebarModel.cronJobs`) + Automations dashboard | Tab 4: native list of automations as tracked goals plus "Create a goal" prompts |
+| Ideas | `ideas.json` in the agent's workspace (`agents.workspace.get`) | Tab 3: the agent's proposals (Start runs one in chat, Not now hides it on this phone, "Get ideas" asks in chat for more), then curated "I can…" ideas |
+| Goals | Session goals (`sessions.list` rows' `goal`, `chat.send` goal intent, `sessions.goal.update`) + cron jobs (`RootSidebarModel.cronJobs`) | Tab 4: "Working on" (goals with status and the latest note), goal proposals (`"kind": "goal"` entries in `ideas.json`), an inline "Start a goal" field, automations as tracked check-ins, and planning templates |
 | More | Every classic destination | Tab 5: a grouped list that opens each one as a sheet |
 | Approvals | `ExecApprovalPromptDialog` | Phase 2: restyle as the Deny/Allow card |
 | Profile sheet | Activity dashboard, approvals settings, cron, workspace memory files | Phase 1 has simple rows. Phase 2 adds segments. |
@@ -84,7 +84,16 @@ Upstream's iOS app gets more than 40 PRs a week. To keep conflicts small:
   on the wizard's own screens. Naming the agent from the phone is deferred:
   the app never writes agent config to the gateway today.
 - **Phase 4: proactive.** Agent-generated Ideas, Goals with progress, and the profile sheet
-  with Activity / Permissions / Upcoming / Memory segments.
+  with Activity / Permissions / Upcoming / Memory segments. Ideas and goals
+  are done. Proposals live in `ideas.json` in the agent's workspace: "Get
+  ideas" asks in chat for the agent to add entries (`id`, `kind` idea or
+  goal, `title`, `summary`, `prompt`), and the tabs read the file back with
+  `agents.workspace.get`. The gateway's own task suggestions can't be used:
+  it offers the `suggest_task` tool only to its web and terminal UIs with
+  admin access. The phone can't write the workspace, so "Not now" is
+  remembered on the phone. Starting a goal sends the objective with the
+  `session-goal-start` intent to a new chat key (admission creates the chat);
+  each chat holds one goal. The profile sheet segments are still to do.
 
 ## Building without a Mac
 

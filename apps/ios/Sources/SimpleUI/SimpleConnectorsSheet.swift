@@ -274,7 +274,7 @@ struct SimpleConnectorsSheet: View {
             case .on:
                 Self.statusMark(for: .connected)
             case .askable, .offInApp:
-                SimpleConnectorButton(title: Text("Turn on"), prominent: true) {
+                SimpleCapsuleButton(title: Text("Turn on"), prominent: true) {
                     if self.model.needsConsent(feature.kind) {
                         self.confirmsCamera = true
                     } else {
@@ -284,7 +284,7 @@ struct SimpleConnectorsSheet: View {
                 .disabled(self.model.busyFeature != nil)
                 .accessibilityIdentifier("simple-connector-turn-on-\(feature.kind.rawValue)")
             case .blocked:
-                SimpleConnectorButton(title: Text("Settings"), prominent: false) {
+                SimpleCapsuleButton(title: Text("Settings"), prominent: false) {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         self.openURL(url)
                     }
@@ -481,25 +481,6 @@ private struct SimpleConnectorRow<Icon: View, Trailing: View>: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
         .accessibilityElement(children: .contain)
-    }
-}
-
-private struct SimpleConnectorButton: View {
-    let title: Text
-    let prominent: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: self.action) {
-            self.title
-                .font(OpenClawType.footnoteSemiBold)
-                .foregroundStyle(self.prominent ? Color.white : SimplePalette.ink)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 32)
-                .background(Capsule().fill(self.prominent ? SimplePalette.accent : SimplePalette.fill))
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
     }
 }
 

@@ -227,3 +227,73 @@ struct SimpleConnectorsTests {
         #expect(states["legacy"] == nil)
     }
 }
+
+struct SimpleProposalsTests {
+    @Test func `the ideas file yields ideas and goals`() throws {
+        let json = """
+        {"ideas": [
+          {"id": "school", "kind": "idea", "title": "Summarize school emails", "summary": "Five arrived.",
+           "prompt": "Summarize this week's school emails."},
+          {"id": "10k", "kind": "Goal", "title": "Run a 10K", "prompt": "Get me ready for a 10K."},
+          {"title": "Plan dinners"},
+          {"id": "blank", "title": "   "},
+          {"id": "untitled", "kind": "idea"}
+        ]}
+        """
+        let proposals = try JSONDecoder().decode(SimpleIdeasFile.self, from: Data(json.utf8)).proposals
+        #expect(proposals.map(\.id) == ["school", "10k", "plan dinners"])
+        #expect(proposals.map(\.isGoal) == [false, true, false])
+        #expect(proposals[1].summary.isEmpty)
+        // A missing prompt falls back to the title so Start still has something to send.
+        #expect(proposals[2].prompt == "Plan dinners")
+    }
+
+    @Test func `workspace files decode from text or base64`() throws {
+        let content = #"{"ideas": []}"#
+        let plain = """
+        {"agentId": "main", "file": {"path": "ideas.json", "name": "ideas.json", "size": 13,
+         "updatedAtMs": 1000, "mimeType": "application/json", "encoding": "utf8", "content": "{}"}}
+        """
+        #expect(try JSONDecoder().decode(SimpleWorkspaceFileLite.self, from: Data(plain.utf8)).text == "{}")
+        let encoded = Data(content.utf8).base64EncodedString()
+        let base64 = """
+        {"agentId": "main", "file": {"path": "ideas.json", "name": "ideas.json", "size": 13,
+         "updatedAtMs": 1000, "mimeType": "application/json", "encoding": "base64", "content": "\(encoded)"}}
+        """
+        #expect(try JSONDecoder().decode(SimpleWorkspaceFileLite.self, from: Data(base64.utf8)).text == content)
+    }
+
+    @Test func `goals come from session rows with unfinished ones first`() throws {
+        let json = """
+        {"sessions": [
+          {"key": "agent:main:main"},
+          {"key": "agent:main:ios-a", "goal": {"id": "a", "objective": "Plan Lisbon", "status": "complete",
+           "updatedAt": 3000, "tokensUsed": 12, "lastStatusNote": "Booked."}},
+          {"key": "agent:main:ios-b", "goal": {"id": "b", "objective": "Tidy inbox", "status": "paused",
+           "updatedAt": 1000, "tokensUsed": 5}},
+          {"key": "agent:main:ios-c", "goal": {"id": "c", "objective": "Run a 10K", "status": "active",
+           "updatedAt": 2000, "tokensUsed": 7, "lastStatusNote": "  "}},
+          {"key": "agent:main:ios-d", "goal": {"id": "d", "objective": "Learn Go", "status": "on_vacation",
+           "updatedAt": 500, "tokensUsed": 1}}
+        ]}
+        """
+        let list = try JSONDecoder().decode(SimpleSessionsGoalsLite.self, from: Data(json.utf8))
+        let goals = SimpleSessionGoal.goals(from: list)
+        #expect(goals.map(\.goalID) == ["c", "b", "d", "a"])
+        #expect(goals.first?.sessionKey == "agent:main:ios-c")
+        #expect(goals.first?.note == nil)
+        let actions = Dictionary(uniqueKeysWithValues: goals.map { ($0.goalID, $0.actions) })
+        #expect(actions["c"] == [.pause, .complete])
+        #expect(actions["b"] == [.resume, .complete])
+        #expect(actions["d"] == [])
+        #expect(actions["a"] == [])
+    }
+
+    @Test func `asking for proposals names the file and its format`() {
+        for kind in [SimpleProposalsModel.Kind.ideas, .goals] {
+            let prompt = SimpleProposalPrompts.ask(kind)
+            #expect(prompt.contains(SimpleIdeasFile.path))
+            #expect(prompt.contains("\"kind\""))
+        }
+    }
+}

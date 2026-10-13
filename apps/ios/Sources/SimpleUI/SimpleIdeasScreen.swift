@@ -1,10 +1,10 @@
 import SwiftUI
 
-// SIMPLE-UI: "Ideas" — things your agent offers to take on, written in its own
-// voice. Tapping an idea starts it in the main chat. Phase 1 ships a curated
-// catalog tuned to what an OpenClaw node can actually reach (calendar,
-// reminders, Health, location, cron); Phase 4 replaces it with ideas the
-// agent proposes from its own heartbeat.
+// SIMPLE-UI: "Ideas" — things your agent offers to take on. Its own proposals
+// (`ideas.json` in its workspace; see SimpleProposals.swift) come first, then
+// a curated catalog tuned to what an OpenClaw node can actually reach
+// (calendar, reminders, Health, location, cron). Tapping either starts it in
+// the main chat.
 
 struct SimpleIdea: Identifiable, Hashable {
     let id: String
@@ -112,12 +112,27 @@ enum SimpleIdeaCatalog {
 
 struct SimpleIdeasScreen: View {
     let ideas: [SimpleIdea]
+    let proposals: SimpleProposalsModel
+    let agentName: String?
+    let actions: SimpleProposalActions
     let onSelect: (SimpleIdea) -> Void
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 SimpleLargeTitle("Ideas")
+                SimpleProposalsSection(
+                    kind: .ideas,
+                    model: self.proposals,
+                    agentName: self.agentName,
+                    actions: self.actions)
+                    .padding(.bottom, 18)
+                Text("Ideas to try")
+                    .font(OpenClawType.headline)
+                    .foregroundStyle(SimplePalette.ink)
+                    .padding(.horizontal, SimpleMetric.gutter + 4)
+                    .padding(.top, 8)
+                    .accessibilityAddTraits(.isHeader)
                 ForEach(self.ideas) { idea in
                     Button {
                         self.onSelect(idea)
