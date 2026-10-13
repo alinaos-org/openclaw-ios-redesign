@@ -52,6 +52,11 @@ final class SimpleShellSnapshotUITests: XCTestCase {
             app.buttons["Simple.Profile.Tab.\(tab)"].tap()
             let content = app.descendants(matching: .any)["Simple.Profile.\(tab.capitalized)Tab"]
             XCTAssertTrue(content.waitForExistence(timeout: 5), "\(tab) tab is missing")
+            if tab == "upcoming" {
+                XCTAssertTrue(
+                    app.descendants(matching: .any)["Simple.Profile.Upcoming.sample-morning-briefing"].exists,
+                    "Upcoming should list the demo automations")
+            }
             XCTAssertTrue(app.buttons["Simple.Profile.Tab.\(tab)"].isSelected, "\(tab) should read as selected")
             self.settle(seconds: 0.8)
             self.capture("simple-profile-\(tab)-\(appearance)")

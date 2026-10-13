@@ -152,11 +152,14 @@ enum SimpleAgentIdentity {
     }
 
     /// The chat agent's automations, for Goals and the profile's Upcoming tab.
+    /// Screenshot and App Review demo modes have no gateway to list them, so
+    /// they show samples instead.
     @MainActor
     static func jobs(_ jobs: [CronJob], appModel: NodeAppModel) -> [CronJob] {
         let agentID = self.agentID(appModel: appModel)
         let defaultAgentID = appModel.gatewayDefaultAgentId?.trimmedNonEmpty?.lowercased() ?? "main"
-        return jobs.filter {
+        let usesSample = appModel.isScreenshotFixtureModeEnabled || appModel.isAppleReviewDemoModeEnabled
+        return (usesSample ? SimpleAutomationsSample.jobs : jobs).filter {
             self.owns(jobAgentID: $0.agentid, agentID: agentID, defaultAgentID: defaultAgentID)
         }
     }

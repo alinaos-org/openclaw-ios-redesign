@@ -440,6 +440,7 @@ private struct SimpleProfileUpcomingRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("Simple.Profile.Upcoming.\(self.job.id)")
     }
 
     private var nextRun: String {
