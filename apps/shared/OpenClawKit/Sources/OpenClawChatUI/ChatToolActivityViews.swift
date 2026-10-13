@@ -188,6 +188,8 @@ private struct ChatToolActivityRowContent: View {
     }
 
     private var accessibilityValue: String {
+        // SIMPLE-UI: cards leave out "No result" here too, matching the screen.
+        if self.cardStyle != nil, self.item.displayState == .unavailable { return self.detailLine ?? "" }
         let status = String(localized: self.item.displayState.title)
         return self.detailLine.map { "\(status), \($0)" } ?? status
     }
@@ -558,11 +560,13 @@ extension ChatToolActivityRowContent {
                     .font(OpenClawChatTypography.body(size: 15, weight: .semibold, relativeTo: .subheadline))
                     .foregroundStyle(self.item.isError ? OpenClawChatTheme.danger : OpenClawChatTheme.assistantText)
                     .lineLimit(1)
-                Text(verbatim: self.cardSubtitle)
-                    .font(OpenClawChatTypography.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if let subtitle = self.cardSubtitle {
+                    Text(verbatim: subtitle)
+                        .font(OpenClawChatTypography.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
 
             Spacer(minLength: 0)
@@ -588,12 +592,18 @@ extension ChatToolActivityRowContent {
         return style.title?(context) ?? self.item.activity?.preparedTitle ?? self.display.title
     }
 
-    /// What the call is doing, plus its outcome when that isn't simply "done".
-    private var cardSubtitle: String {
+    /// What the call is doing, plus its outcome when something went wrong.
+    /// "No result" (the gateway never reported an outcome) is left out: it
+    /// reads as a failure when the step usually ran fine.
+    private var cardSubtitle: String? {
         let state = self.item.displayState
-        let stateTitle = String(localized: state.title)
-        guard let detail = self.detailLine else { return stateTitle }
-        return state == .finished || state == .running ? detail : "\(detail) · \(stateTitle)"
+        switch state {
+        case .running, .finished, .unavailable:
+            return self.detailLine
+        case .failed, .blocked, .skipped:
+            let stateTitle = String(localized: state.title)
+            return self.detailLine.map { "\($0) · \(stateTitle)" } ?? stateTitle
+        }
     }
 
     @ViewBuilder

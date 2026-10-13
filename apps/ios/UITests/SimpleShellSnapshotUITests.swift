@@ -105,7 +105,11 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         app.launch()
         self.app = app
         self.expandCompletedWork(in: app)
-        XCTAssertTrue(self.toolRow(in: app).waitForExistence(timeout: 10), "Tool rows are missing")
+        let row = self.toolRow(in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "Tool rows are missing")
+        XCTAssertTrue(
+            (row.value as? String ?? "").contains("No result"),
+            "The classic layout keeps the unknown-outcome label")
         self.settle()
         self.capture("classic-tool-rows-light")
     }
@@ -121,6 +125,9 @@ final class SimpleShellSnapshotUITests: XCTestCase {
         self.expandCompletedWork(in: app)
         let card = self.toolRow(in: app)
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Tool cards are missing")
+        XCTAssertFalse(
+            (card.value as? String ?? "").contains("No result"),
+            "Cards leave out the unknown-outcome label")
         self.settle()
         self.capture("simple-tool-cards-\(appearance)")
         card.tap()
