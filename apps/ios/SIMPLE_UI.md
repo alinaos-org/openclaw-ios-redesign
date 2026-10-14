@@ -116,6 +116,10 @@ To fetch the newest screenshots:
 gh run download -R mmango7474/openclaw-ios-redesign -n simple-ui-screenshots
 ```
 
+To put a build on an iPhone, start `.github/workflows/simple-ui-testflight.yml` by hand. It
+signs the app as `ai.controlstack.openclaw` and uploads it to TestFlight. One-time setup:
+[`TESTFLIGHT.md`](TESTFLIGHT.md).
+
 Local lint on Linux uses the same pinned tools from nixpkgs (`swiftformat` 0.63.1,
 `swiftlint` 0.65.1) with `config/swiftformat` and `apps/ios/.swiftlint.yml`.
 

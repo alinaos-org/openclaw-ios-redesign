@@ -46,8 +46,11 @@ the linters and tests and saves simulator screenshots of every screen as the
 gh run download -R mmango7474/openclaw-ios-redesign -n simple-ui-screenshots
 ```
 
-Running it on your own iPhone requires Xcode 26.4 or newer and Apple
-Development signing, the same as upstream. See
+To install it on your iPhone without a Mac, start the
+[Simple UI TestFlight](https://github.com/mmango7474/openclaw-ios-redesign/actions/workflows/simple-ui-testflight.yml)
+workflow. It uploads a signed build to TestFlight. It needs a one-time Apple
+and GitHub setup, described in [`apps/ios/TESTFLIGHT.md`](/apps/ios/TESTFLIGHT.md).
+Building from Xcode instead works the same as upstream. See
 [`apps/ios/README.md`](/apps/ios/README.md).
 
 ## Staying current with upstream

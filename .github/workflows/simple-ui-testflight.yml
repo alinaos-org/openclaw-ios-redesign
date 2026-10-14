@@ -1,0 +1,282 @@
+# Fork-only workflow that archives the simple-layout iOS app with App Store
+# signing and uploads it to TestFlight. It runs only when started by hand.
+# One-time Apple and GitHub setup: apps/ios/TESTFLIGHT.md.
+#
+# Signing uses fastlane match: the Apple Distribution certificate and App Store
+# profiles are created through the App Store Connect API on the first run and
+# kept encrypted in a private signing repo for later runs.
+name: Simple UI TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      regenerate_profiles:
+        description: Recreate the App Store profiles (after changing App ID capabilities)
+        type: boolean
+        default: false
+
+concurrency:
+  group: simple-ui-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.21.0"
+  # This fork's App Store identifiers. scripts/ios-configure-signing.sh reads
+  # these names when it writes apps/ios/.local-signing.xcconfig.
+  OPENCLAW_IOS_APP_BUNDLE_ID: ai.controlstack.openclaw
+  OPENCLAW_IOS_SHARE_BUNDLE_ID: ai.controlstack.openclaw.share
+  OPENCLAW_IOS_ACTIVITY_WIDGET_BUNDLE_ID: ai.controlstack.openclaw.activitywidget
+  OPENCLAW_IOS_WATCH_APP_BUNDLE_ID: ai.controlstack.openclaw.watchkitapp
+  OPENCLAW_IOS_APP_GROUP_ID: group.ai.controlstack.openclaw.shared
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 150
+    env:
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      IOS_SIGNING_REPO: ${{ vars.IOS_SIGNING_REPO }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check TestFlight setup
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          MATCH_GIT_TOKEN: ${{ secrets.MATCH_GIT_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in APPLE_TEAM_ID IOS_SIGNING_REPO; do
+            [[ -n "${!name}" ]] || missing+=("variable $name")
+          done
+          for name in APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_CONTENT APP_STORE_CONNECT_KEY_ID MATCH_GIT_TOKEN MATCH_PASSWORD; do
+            [[ -n "${!name}" ]] || missing+=("secret $name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf -v list '%s, ' "${missing[@]}"
+            echo "::error::TestFlight setup is incomplete. Missing ${list%, }. See apps/ios/TESTFLIGHT.md."
+            exit 1
+          fi
+          if [[ ! "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
+            echo "::error::APPLE_TEAM_ID must be the 10-character Team ID from developer.apple.com/account."
+            exit 1
+          fi
+          if [[ ! "$IOS_SIGNING_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::IOS_SIGNING_REPO must look like owner/repo."
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          source scripts/lib/swift-toolchain.sh
+          select_xcode_toolchain
+
+      # Signing runs before the long build setup so setup mistakes fail fast.
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: "3.4.11"
+          bundler: "4.0.22"
+          bundler-cache: false
+          working-directory: apps/ios
+
+      - name: Install locked Fastlane bundle
+        working-directory: apps/ios
+        run: |
+          set -euo pipefail
+          bundle _4.0.22_ install --jobs 4 --retry 3
+          bundle _4.0.22_ check
+
+      - name: Write App Store Connect API key
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key_dir="$(mktemp -d "$RUNNER_TEMP/app-store-connect.XXXXXX")"
+          jq -n \
+            --arg key_id "$APP_STORE_CONNECT_KEY_ID" \
+            --arg issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --arg key "$APP_STORE_CONNECT_KEY_CONTENT" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' \
+            > "$key_dir/api-key.json"
+          echo "APP_STORE_CONNECT_API_KEY_JSON=$key_dir/api-key.json" >> "$GITHUB_ENV"
+
+      # Sets MATCH_KEYCHAIN_NAME and MATCH_KEYCHAIN_PASSWORD; deletes the keychain after the job.
+      - name: Create signing keychain
+        uses: ./.github/actions/ios-signing-keychain
+
+      - name: Fetch App Store signing
+        working-directory: apps/ios
+        env:
+          MATCH_GIT_TOKEN: ${{ secrets.MATCH_GIT_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          REGENERATE_PROFILES: ${{ inputs.regenerate_profiles }}
+        run: |
+          set -euo pipefail
+          basic_auth="$(printf '%s:%s' "$GITHUB_REPOSITORY_OWNER" "$MATCH_GIT_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$basic_auth"
+          # Pass app_identifier explicitly: apps/ios/fastlane/Appfile names upstream's app.
+          MATCH_GIT_BASIC_AUTHORIZATION="$basic_auth" bundle _4.0.22_ exec fastlane run match \
+            type:appstore \
+            platform:ios \
+            readonly:false \
+            force:"${REGENERATE_PROFILES:-false}" \
+            team_id:"$APPLE_TEAM_ID" \
+            app_identifier:"$OPENCLAW_IOS_APP_BUNDLE_ID,$OPENCLAW_IOS_SHARE_BUNDLE_ID,$OPENCLAW_IOS_ACTIVITY_WIDGET_BUNDLE_ID,$OPENCLAW_IOS_WATCH_APP_BUNDLE_ID" \
+            git_url:"https://github.com/$IOS_SIGNING_REPO.git" \
+            git_branch:main \
+            api_key_path:"$APP_STORE_CONNECT_API_KEY_JSON"
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          install-bun: "false"
+          install-deps: "false"
+          cache-mode: "off"
+
+      - name: Install native asset dependencies
+        env:
+          CI: "true"
+        run: >-
+          pnpm install --frozen-lockfile --prefer-offline --optional
+          --filter '@openclaw/mermaid-renderer...'
+          --filter '@openclaw/gateway-protocol...'
+          --config.ignore-scripts=false
+          --config.engine-strict=false
+          --config.enable-pre-post-scripts=true
+
+      - name: Prepare Apple Mermaid assets
+        run: node scripts/prepare-apple-mermaid.mjs
+
+      - name: Install Watch Rust toolchain
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          watch_toolchain="$(awk -F '"' '/^channel =/ { print $2; exit }' apps/shared/OpenClawWatchRTC/rust-toolchain.toml)"
+          test -n "$watch_toolchain"
+          rustup toolchain install "$watch_toolchain" --profile minimal --component rust-src
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Install iOS Swift tooling
+        run: |
+          set -euo pipefail
+          swift_tools_dir="$RUNNER_TEMP/openclaw-swift-tools"
+          ./scripts/install-xcodegen.sh "$swift_tools_dir"
+          ./scripts/install-swift-tools.sh "$swift_tools_dir"
+          echo "$swift_tools_dir" >> "$GITHUB_PATH"
+
+      - name: Generate project
+        env:
+          IOS_DEVELOPMENT_TEAM: ${{ vars.APPLE_TEAM_ID }}
+          IOS_SIGNING_REQUIRED: "1"
+          OPENCLAW_IOS_CODE_SIGN_STYLE: Manual
+          OPENCLAW_IOS_CODE_SIGN_IDENTITY: Apple Distribution
+          OPENCLAW_IOS_APNS_ENTITLEMENT_ENVIRONMENT: production
+        run: |
+          set -euo pipefail
+          # fastlane match names its profiles "match AppStore <bundle ID>".
+          export OPENCLAW_IOS_APP_PROFILE="match AppStore $OPENCLAW_IOS_APP_BUNDLE_ID"
+          export OPENCLAW_IOS_SHARE_PROFILE="match AppStore $OPENCLAW_IOS_SHARE_BUNDLE_ID"
+          export OPENCLAW_IOS_ACTIVITY_WIDGET_PROFILE="match AppStore $OPENCLAW_IOS_ACTIVITY_WIDGET_BUNDLE_ID"
+          export OPENCLAW_IOS_WATCH_APP_PROFILE="match AppStore $OPENCLAW_IOS_WATCH_APP_BUNDLE_ID"
+          pnpm ios:gen
+          # TestFlight needs a new build number for every upload.
+          ./scripts/ios-write-version-xcconfig.sh --build-number "$GITHUB_RUN_NUMBER"
+
+      - name: Archive
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project apps/ios/OpenClaw.xcodeproj \
+            -scheme OpenClaw \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath "$RUNNER_TEMP/OpenClaw.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -showBuildTimingSummary \
+            archive
+
+      - name: Export App Store package
+        run: |
+          set -euo pipefail
+          export_options="$RUNNER_TEMP/ExportOptions.plist"
+          cat > "$export_options" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$OPENCLAW_IOS_APP_BUNDLE_ID</key>
+              <string>match AppStore $OPENCLAW_IOS_APP_BUNDLE_ID</string>
+              <key>$OPENCLAW_IOS_SHARE_BUNDLE_ID</key>
+              <string>match AppStore $OPENCLAW_IOS_SHARE_BUNDLE_ID</string>
+              <key>$OPENCLAW_IOS_ACTIVITY_WIDGET_BUNDLE_ID</key>
+              <string>match AppStore $OPENCLAW_IOS_ACTIVITY_WIDGET_BUNDLE_ID</string>
+              <key>$OPENCLAW_IOS_WATCH_APP_BUNDLE_ID</key>
+              <string>match AppStore $OPENCLAW_IOS_WATCH_APP_BUNDLE_ID</string>
+            </dict>
+            <key>destination</key>
+            <string>export</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+          plutil -lint "$export_options"
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/OpenClaw.xcarchive" \
+            -exportPath "$RUNNER_TEMP/app-store-export" \
+            -exportOptionsPlist "$export_options"
+          ls -la "$RUNNER_TEMP/app-store-export"
+
+      - name: Upload to TestFlight
+        working-directory: apps/ios
+        run: |
+          set -euo pipefail
+          ipa="$(find "$RUNNER_TEMP/app-store-export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$ipa"
+          bundle _4.0.22_ exec fastlane run upload_to_testflight \
+            ipa:"$ipa" \
+            app_identifier:"$OPENCLAW_IOS_APP_BUNDLE_ID" \
+            api_key_path:"$APP_STORE_CONNECT_API_KEY_JSON" \
+            skip_waiting_for_build_processing:true
+          {
+            echo "### Uploaded to TestFlight"
+            echo
+            echo "Build $GITHUB_RUN_NUMBER of \`$OPENCLAW_IOS_APP_BUNDLE_ID\`. Apple processes it for 10–30 minutes before it shows up in the TestFlight app."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove App Store Connect API key
+        if: always()
+        run: |
+          if [[ -n "${APP_STORE_CONNECT_API_KEY_JSON:-}" ]]; then
+            rm -rf "$(dirname "$APP_STORE_CONNECT_API_KEY_JSON")"
+          fi
