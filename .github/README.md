@@ -1,6 +1,6 @@
 # OpenClaw for iPhone, simple layout
 
-![The simple layout in light and dark mode: the first-run welcome and pairing screens, chat with plain-language tool cards, the approval card, Ideas and Goals with the agent's proposals and goals in progress, More, the agent profile's Activity and Memory tabs, and Connectors](/.github/assets/simple-ui-overview.png)
+![The simple layout in light and dark mode: the first-run welcome and pairing screens, chat with plain-language tool cards, the approval card, Ideas and Goals with the agent's proposals, goals in progress, and automations, More, the agent profile's Activity, Upcoming, and Memory tabs, and Connectors](/.github/assets/simple-ui-overview.png)
 
 An unofficial fork of [OpenClaw](https://github.com/openclaw/openclaw)'s iPhone app
 with a simpler, friendlier layout. You get one main chat with your agent, five
