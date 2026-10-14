@@ -1,13 +1,13 @@
 import type { ThemeMode } from "../app/theme.ts";
 import { t } from "../lib/reactive/i18n.ts";
-import { defineSolidBridge } from "../lit/solid-bridge.ts";
+import { defineSolidBridge, type SolidBridgeElement } from "../lit/solid-bridge.ts";
 import { Icon } from "./solid/icon.tsx";
 import "./tooltip.ts";
 
 export type ThemeModeChangeDetail = { mode: ThemeMode; element: HTMLElement };
 type Props = { mode: ThemeMode; menuItem: boolean };
 
-export const ThemeModeToggle = defineSolidBridge<Props>(
+defineSolidBridge<Props>(
   "openclaw-theme-mode-toggle",
   (props, host) => {
     host.style.display = "contents";
@@ -49,3 +49,9 @@ export const ThemeModeToggle = defineSolidBridge<Props>(
     },
   },
 );
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "openclaw-theme-mode-toggle": SolidBridgeElement<Props>;
+  }
+}

@@ -116,13 +116,15 @@ struct SimpleChatsSheet: View {
             .categories(from: self.sidebarModel.sessions, knownGroups: SessionGroupStore.load())
             .enumerated()
             .map { offset, name in OpenClawChatSessionGroup(name: name, position: offset) }
-        return self.sidebarModel.sections(
+        return RootSidebarModel.sections(
+            sessions: self.sidebarModel.sessions,
             query: self.trimmedQuery,
             currentSessionKey: self.appModel.chatSessionKey,
             mainSessionKey: self.appModel.mainSessionKey,
             activeAgentID: self.appModel.chatAgentId,
             groups: groups,
-            sessionRoutingContract: self.appModel.chatSessionRoutingContract)
+            sessionRoutingContract: self.appModel.chatSessionRoutingContract,
+            now: self.sidebarModel.now)
             .map { section in
                 SideChatSection(
                     id: section.id,

@@ -5,6 +5,7 @@ import type { SessionActorHotState } from "./session-actor-state.types.js";
 import type { ResolvedSessionEntryRow } from "./session-entry-storage.types.js";
 import type { SessionPendingInputRow } from "./session-pending-input.types.js";
 import type { SessionTranscriptProjectionState } from "./session-transcript-projection-append.js";
+import type { SessionTranscriptContextMetadata } from "./session-transcript-projection-facts.types.js";
 
 export type SessionActorStoredState = {
   agentId: string;
@@ -25,6 +26,7 @@ export type SessionActorStoredState = {
     active: Map<number, Selectable<DB["session_transcript_active_events"]>>;
     navigation: Array<SessionTreeEntry & { seq: number }>;
     /** Only payloads acquired by this residency are retained; older bodies remain bounded reads. */
-    payloads: Map<number, unknown>;
+    payloads: Map<number, { event: unknown; serializedBytes: number }>;
+    contextMetadata?: SessionTranscriptContextMetadata;
   };
 };

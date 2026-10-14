@@ -6,6 +6,7 @@ import type {
 import { createDeferred as deferred } from "../../../../test/helpers/promise.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ApplicationGatewaySnapshot } from "../../app/context.ts";
+import "../../lib/toast-host.ts";
 import {
   loadStoredHiddenSessionCatalogIds,
   setStoredSessionCatalogHidden,
@@ -17,6 +18,7 @@ import {
   mountSidebar,
   successfulSessionPatch,
 } from "../app-sidebar.ts";
+import { settleLitElement } from "../lit-settle.ts";
 import { waitForFast } from "../wait-for.ts";
 import {
   click,
@@ -26,7 +28,7 @@ import {
   selectedRowKeys,
   sessionMenu,
 } from "./multi-select-support.ts";
-import "../../components/app-sidebar.ts";
+import "../../components/app-sidebar.tsx";
 
 describe("AppSidebar multi-select", () => {
   it("restores the thread link when Tab exits its keyboard context menu", async () => {
@@ -212,7 +214,8 @@ describe("AppSidebar catalog session rows", () => {
     sidebar.connected = true;
     await sidebar.updateComplete;
     await vi.advanceTimersByTimeAsync(0);
-    await sidebar.updateComplete;
+    vi.advanceTimersToNextFrame();
+    await settleLitElement(sidebar);
     return { sidebar, request };
   }
 
@@ -406,8 +409,8 @@ describe("AppSidebar catalog session rows", () => {
         updateComplete: Promise<boolean>;
       };
       await menu.updateComplete;
-      const items = menu.querySelectorAll<HTMLElement & { disabled: boolean }>("wa-dropdown-item");
-      expect([...items].map((item) => item.getAttribute("value"))).toEqual([
+      const items = menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+      expect([...items].map((item) => item.dataset.value)).toEqual([
         "viewer",
         "import",
         "terminal",
