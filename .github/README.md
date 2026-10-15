@@ -36,18 +36,18 @@ The design and plan are in [`apps/ios/SIMPLE_UI.md`](/apps/ios/SIMPLE_UI.md).
 
 ## Builds and screenshots
 
-[![Simple UI iOS](https://github.com/mmango7474/openclaw-ios-redesign/actions/workflows/simple-ui-ios.yml/badge.svg?branch=simple-ui)](https://github.com/mmango7474/openclaw-ios-redesign/actions/workflows/simple-ui-ios.yml)
+[![Simple UI iOS](https://github.com/alinaos-org/openclaw-ios-redesign/actions/workflows/simple-ui-ios.yml/badge.svg?branch=simple-ui)](https://github.com/alinaos-org/openclaw-ios-redesign/actions/workflows/simple-ui-ios.yml)
 
 Each push to `simple-ui` builds the app on a GitHub-hosted Mac. The build also runs
 the linters and tests and saves simulator screenshots of every screen as the
 `simple-ui-screenshots` artifact:
 
 ```bash
-gh run download -R mmango7474/openclaw-ios-redesign -n simple-ui-screenshots
+gh run download -R alinaos-org/openclaw-ios-redesign -n simple-ui-screenshots
 ```
 
 To install it on your iPhone without a Mac, start the
-[Simple UI TestFlight](https://github.com/mmango7474/openclaw-ios-redesign/actions/workflows/simple-ui-testflight.yml)
+[Simple UI TestFlight](https://github.com/alinaos-org/openclaw-ios-redesign/actions/workflows/simple-ui-testflight.yml)
 workflow. It uploads a signed build to TestFlight. It needs a one-time Apple
 and GitHub setup, described in [`apps/ios/TESTFLIGHT.md`](/apps/ios/TESTFLIGHT.md).
 Building from Xcode instead works the same as upstream. See

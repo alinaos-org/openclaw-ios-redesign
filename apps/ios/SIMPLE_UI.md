@@ -6,7 +6,7 @@ underneath (gateway pairing, node commands, voice, push, approvals, Watch)
 stays upstream OpenClaw. The original sidebar layout remains available as the
 **classic layout**.
 
-Branch: `simple-ui` · Fork: `mmango7474/openclaw-ios-redesign` · Upstream
+Branch: `simple-ui` · Fork: `alinaos-org/openclaw-ios-redesign` · Upstream
 remote: `upstream` (openclaw/openclaw, MIT).
 
 ## Why
@@ -113,7 +113,7 @@ GitHub Actions builds every push to `simple-ui` on a hosted macOS runner
 To fetch the newest screenshots:
 
 ```bash
-gh run download -R mmango7474/openclaw-ios-redesign -n simple-ui-screenshots
+gh run download -R alinaos-org/openclaw-ios-redesign -n simple-ui-screenshots
 ```
 
 To put a build on an iPhone, start `.github/workflows/simple-ui-testflight.yml` by hand. It

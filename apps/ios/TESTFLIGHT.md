@@ -59,13 +59,13 @@ membership. You don't need a Mac.
    your shell history:
 
    ```bash
-   gh variable set APPLE_TEAM_ID -R mmango7474/openclaw-ios-redesign --body YOURTEAMID
-   gh variable set IOS_SIGNING_REPO -R mmango7474/openclaw-ios-redesign --body mmango7474/ios-signing
-   gh secret set APP_STORE_CONNECT_KEY_ID -R mmango7474/openclaw-ios-redesign
-   gh secret set APP_STORE_CONNECT_ISSUER_ID -R mmango7474/openclaw-ios-redesign
-   gh secret set APP_STORE_CONNECT_KEY_CONTENT -R mmango7474/openclaw-ios-redesign < AuthKey_XXXXXXXXXX.p8
-   gh secret set MATCH_PASSWORD -R mmango7474/openclaw-ios-redesign
-   gh secret set MATCH_GIT_TOKEN -R mmango7474/openclaw-ios-redesign
+   gh variable set APPLE_TEAM_ID -R alinaos-org/openclaw-ios-redesign --body YOURTEAMID
+   gh variable set IOS_SIGNING_REPO -R alinaos-org/openclaw-ios-redesign --body mmango7474/ios-signing
+   gh secret set APP_STORE_CONNECT_KEY_ID -R alinaos-org/openclaw-ios-redesign
+   gh secret set APP_STORE_CONNECT_ISSUER_ID -R alinaos-org/openclaw-ios-redesign
+   gh secret set APP_STORE_CONNECT_KEY_CONTENT -R alinaos-org/openclaw-ios-redesign < AuthKey_XXXXXXXXXX.p8
+   gh secret set MATCH_PASSWORD -R alinaos-org/openclaw-ios-redesign
+   gh secret set MATCH_GIT_TOKEN -R alinaos-org/openclaw-ios-redesign
    ```
 
    `MATCH_PASSWORD` encrypts the signing repo, so pick a long random password
@@ -76,7 +76,7 @@ membership. You don't need a Mac.
 Start the workflow from the Actions tab, or run:
 
 ```bash
-gh workflow run simple-ui-testflight.yml -R mmango7474/openclaw-ios-redesign --ref simple-ui
+gh workflow run simple-ui-testflight.yml -R alinaos-org/openclaw-ios-redesign --ref simple-ui
 ```
 
 The first run creates the Apple Distribution certificate and the four App
