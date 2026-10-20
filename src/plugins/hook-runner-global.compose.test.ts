@@ -9,6 +9,7 @@ import { addTestHook, createMockPluginRegistry } from "./hooks.test-fixtures.js"
 import type { PluginRegistry } from "./registry.js";
 import { resetPluginRuntimeStateForTest, setActivePluginRegistry } from "./runtime.js";
 import { withPluginRuntimeRegistryScope } from "./runtime/gateway-request-scope.js";
+import { withPluginRuntimeGenerationRegistryScope } from "./runtime/generation-state.js";
 import { createPluginRecord } from "./status.test-helpers.js";
 
 function runner() {
@@ -96,6 +97,50 @@ describe("global hook runner registry selection", () => {
 
     expect(scopedHook).toHaveBeenCalledOnce();
     expect(rootHook).not.toHaveBeenCalled();
+  });
+
+  it("keeps unrelated root hooks while a prepared generation replaces matching hooks", async () => {
+    const rootHook = vi.fn();
+    const rootSharedHook = vi.fn();
+    const generationHook = vi.fn();
+    const generationSharedHook = vi.fn();
+    const root = createMockPluginRegistry([
+      { hookName: "llm_output", handler: rootHook, pluginId: "root" },
+      { hookName: "llm_output", handler: rootSharedHook, pluginId: "shared" },
+    ]);
+    const generation = createMockPluginRegistry([
+      { hookName: "llm_output", handler: generationHook, pluginId: "generation" },
+      { hookName: "llm_output", handler: generationSharedHook, pluginId: "shared" },
+    ]);
+    const event = {
+      runId: "test-run",
+      sessionId: "test-session",
+      provider: "test-provider",
+      model: "test-model",
+      assistantTexts: [],
+      usage: { input: 1, output: 1, total: 2 },
+    };
+    const context = {
+      agentId: "test-agent",
+      sessionId: "test-session",
+      sessionKey: "agent:test-agent:test-session",
+      runId: "test-run",
+    };
+    setActivePluginRegistry(root);
+    initializeGlobalHookRunner(root);
+
+    await withPluginRuntimeGenerationRegistryScope(generation, () =>
+      runner().runLlmOutput(event, context),
+    );
+
+    expect(rootHook).toHaveBeenCalledOnce();
+    expect(rootSharedHook).not.toHaveBeenCalled();
+    expect(generationHook).toHaveBeenCalledOnce();
+    expect(generationSharedHook).toHaveBeenCalledOnce();
+
+    await runner().runLlmOutput(event, context);
+    expect(rootHook).toHaveBeenCalledTimes(2);
+    expect(rootSharedHook).toHaveBeenCalledOnce();
   });
 
   it("keeps root contributions when a same-plugin request handle has none", async () => {
