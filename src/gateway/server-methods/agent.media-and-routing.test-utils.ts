@@ -319,6 +319,11 @@ describe("gateway agent handler", () => {
 
     expect(mocks.updateSessionStore).toHaveBeenCalled();
     expect(capturedEntry?.pluginOwnerId).toBe("memory-core");
+    const runtime = await import("../../agents/prepared-model-runtime.js");
+    const acquiredInput = vi
+      .mocked(runtime.acquireAgentRunPreparedModelRuntime)
+      .mock.calls.at(-1)?.[0];
+    expect(acquiredInput?.runtimePluginOwnerIds).toEqual(["memory-core"]);
   });
 
   it("forwards plugin-owned additive tools only for tracked plugin subagent runs", async () => {
